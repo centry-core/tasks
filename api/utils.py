@@ -44,18 +44,18 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
 def run_task(project_id, event, task_id=None) -> dict:
     rpc = RpcMixin().rpc
     secrets = rpc.call.get_hidden(project_id=project_id)
-    secrets.update(rpc.get_secrets(project_id=project_id))
+    secrets.update(rpc.call.get_secrets(project_id=project_id))
     task_id = task_id if task_id else secrets["control_tower_id"]
     task = Task.query.filter(and_(Task.task_id == task_id)).first().to_json()
     check_task_quota(task)
-    rpc.add_task_execution(project_id=task['project_id'])
+    rpc.call.add_task_execution(project_id=task['project_id'])
     arbiter = get_arbiter()
     task_kwargs = {
-        "task": rpc.unsecret_key(value=task, secrets=secrets, project_id=project_id),
-        "event": rpc.unsecret_key(value=event, secrets=secrets, project_id=project_id),
-        "galloper_url": rpc.unsecret_key(value="{{secret.galloper_url}}", secrets=secrets,
+        "task": rpc.call.unsecret_key(value=task, secrets=secrets, project_id=project_id),
+        "event": rpc.call.unsecret_key(value=event, secrets=secrets, project_id=project_id),
+        "galloper_url": rpc.call.unsecret_key(value="{{secret.galloper_url}}", secrets=secrets,
                                          project_id=task['project_id']),
-        "token": rpc.unsecret_key(value="{{secret.auth_token}}", secrets=secrets, project_id=task['project_id'])
+        "token": rpc.call.unsecret_key(value="{{secret.auth_token}}", secrets=secrets, project_id=task['project_id'])
     }
     arbiter.apply("execute_lambda", queue=RABBIT_QUEUE_NAME, task_kwargs=task_kwargs)
     arbiter.close()
