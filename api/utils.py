@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import and_
 from arbiter import Arbiter
 
+from ...shared.utils.rpc import RpcMixin
 from ...shared.constants import RABBIT_HOST, RABBIT_PORT, RABBIT_USER, RABBIT_PASSWORD, RABBIT_QUEUE_NAME
 from ...shared.utils.api_utils import upload_file
 from ...shared.data_utils.file_utils import File
@@ -40,10 +41,9 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
     return {"message", "ok"}
 
 
-def run_task(project_id, event, task_id=None):
-    from flask import current_app
-    rpc = current_app.config["CONTEXT"].rpc_manager.call
-    secrets = rpc.get_hidden(project_id=project_id)
+def run_task(project_id, event, task_id=None) -> dict:
+    rpc = RpcMixin().rpc
+    secrets = rpc.call.get_hidden(project_id=project_id)
     secrets.update(rpc.get_secrets(project_id=project_id))
     task_id = task_id if task_id else secrets["control_tower_id"]
     task = Task.query.filter(and_(Task.task_id == task_id)).first().to_json()
