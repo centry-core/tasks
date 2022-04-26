@@ -22,7 +22,7 @@ from flask import request, render_template
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
 
-from ..shared.utils.api_utils import add_resource_to_api
+# from ..shared.utils.api_utils import add_resource_to_api
 
 from .init_db import init_db
 
@@ -36,6 +36,7 @@ class Module(module.ModuleModel):
 
     def init(self):
         """ Init module """
+        return
         log.info("Initializing module Tasks")
         init_db()
         from .api.tasks import TasksApi
