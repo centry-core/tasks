@@ -8,8 +8,8 @@ from arbiter import Arbiter
 # from ...shared.utils.api_utils import upload_file
 # from ...shared.data_utils.file_utils import File
 
-from ...models.tasks import Task
-from tools import constants as c, api_tools, rpc_tools
+from .models.tasks import Task
+from tools import constants as c, api_tools, rpc_tools, data_tools
 
 
 def get_arbiter():
@@ -19,7 +19,7 @@ def get_arbiter():
 
 def create_task(project, file, args):
     if isinstance(file, str):
-        file = File(file)
+        file = data_tools.files.File(file)
     filename = str(uuid4())
     filename = secure_filename(filename)
     api_tools.upload_file(bucket="tasks", f=file, project=project)

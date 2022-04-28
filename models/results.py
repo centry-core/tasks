@@ -14,11 +14,10 @@
 
 from sqlalchemy import String, Column, Integer, Text
 
-from ...shared.db_manager import Base
-from ...shared.models.abstract_base import AbstractBaseMixin
+from tools import db, db_tools
 
 
-class Results(AbstractBaseMixin, Base):
+class Results(db_tools.AbstractBaseMixin, db.Base):
     __tablename__ = "results"
 
     id = Column(Integer, primary_key=True)
