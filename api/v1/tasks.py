@@ -7,7 +7,7 @@ from flask_restful import Resource
 # from ...shared.utils.api_utils import build_req_parser, get
 
 from ...models.tasks import Task
-from ...utils import create_task
+from ...tools.task_tools import create_task
 
 from tools import api_tools, data_tools
 

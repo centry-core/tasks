@@ -3,18 +3,12 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import and_
 from arbiter import Arbiter
 
-# from ...shared.utils.rpc import RpcMixin
-# from ...shared.constants import RABBIT_HOST, RABBIT_PORT, RABBIT_USER, RABBIT_PASSWORD, RABBIT_QUEUE_NAME
-# from ...shared.utils.api_utils import upload_file
-# from ...shared.data_utils.file_utils import File
-
-from .models.tasks import Task
+from ..models.tasks import Task
 from tools import constants as c, api_tools, rpc_tools, data_tools, secrets_tools
 
 
 def get_arbiter():
-    arbiter = Arbiter(host=c.RABBIT_HOST, port=c.RABBIT_PORT, user=c.RABBIT_USER, password=c.RABBIT_PASSWORD)
-    return arbiter
+    return Arbiter(host=c.RABBIT_HOST, port=c.RABBIT_PORT, user=c.RABBIT_USER, password=c.RABBIT_PASSWORD)
 
 
 def create_task(project, file, args):

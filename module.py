@@ -42,6 +42,10 @@ class Module(module.ModuleModel):
         # self.context.rpc_manager.register_function(list_tasks)
         # self.context.rpc_manager.register_function(tasks_count)
 
+        from .tools import task_tools
+        self.descriptor.register_tool('task_tools', task_tools)
+
+
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
         log.info("De-initializing module Tasks")

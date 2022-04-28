@@ -1,8 +1,8 @@
 from flask import request, make_response
 from flask_restful import Resource
 
-from ...utils import run_task
 from ...models.tasks import Task
+from ...tools.task_tools import run_task
 
 from tools import secrets_tools
 

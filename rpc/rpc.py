@@ -2,7 +2,7 @@ from pylon.core.tools import web, log
 from tools import rpc_tools
 
 from ..models.tasks import Task
-from ..utils import create_task
+from ..tools.task_tools import create_task
 
 
 class RPC:
