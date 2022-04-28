@@ -1,8 +1,8 @@
-from ..shared.db_manager import Base, engine
+from tools import db
 
 
 def init_db():
     from .models.results import Results
     from .models.tasks import Task
-    Base.metadata.create_all(bind=engine)
+    db.Base.metadata.create_all(bind=db.engine)
 
