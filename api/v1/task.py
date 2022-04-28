@@ -4,6 +4,8 @@ from flask_restful import Resource
 from ...utils import run_task
 from ...models.tasks import Task
 
+from tools import secrets_tools
+
 
 class API(Resource):
     def __init__(self, module):
@@ -18,7 +20,7 @@ class API(Resource):
         args = request.args
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
         if args.get("exec"):
-            return self.module.context.rpc_manager.call.unsecret_key(
+            return secrets_tools.unsecret(
                 value=task.to_json(), project_id=project_id)
         return make_response(task.to_json(), 200)
 

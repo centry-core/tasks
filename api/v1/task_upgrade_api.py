@@ -1,4 +1,4 @@
-from flask import make_response
+from flask import make_response, request
 from flask_restful import Resource
 from sqlalchemy import and_
 
@@ -10,7 +10,7 @@ from sqlalchemy import and_
 
 from ...models.tasks import Task
 
-from tools import data_tools, constants as c, api_tools
+from tools import data_tools, constants as c, api_tools, secrets_tools
 
 
 class API(Resource):
@@ -32,11 +32,11 @@ class API(Resource):
         task.commit()
 
     def get(self, project_id):
-        project = self.rpc.project_get_or_404(project_id=project_id)
-        args = self.get_parser.parse_args(strict=False)
+        project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+        args = request.args
         if args['name'] not in ['post_processor', 'control_tower', 'all']:
             return {"message": "You shall not pass", "code": 400}, 400
-        secrets = self.rpc.get_hidden(project_id=project.id)
+        secrets = secrets_tools.get_project_hidden_secrets(project_id=project.id)
         project_secrets = {}
         if args['name'] == 'post_processor':
             self.create_pp_task(project)
@@ -58,13 +58,13 @@ class API(Resource):
             secrets["rabbit_host"] = c.APP_IP
             secrets["rabbit_user"] = c.RABBIT_USER
             secrets["rabbit_password"] = c.RABBIT_PASSWORD
-            secrets = self.rpc.project_set_secrets(
+            secrets = secrets_tools.set_project_secrets(
                 project_id=project.id,
                 secrets=project_secrets
             )
         else:
             return make_response({"message": "go away", "code": 400}, 400)
-        self.module.context.rpc_manager.call.project_set_hidden_secrets(
+        secrets_tools.set_project_hidden_secrets(
             project_id=project.id,
             secrets=secrets
         )
