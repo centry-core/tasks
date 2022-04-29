@@ -8,10 +8,14 @@ from tools import secrets_tools
 
 
 class API(Resource):
+    url_params = [
+        '<int:project_id>/<string:task_id>',
+    ]
+
     def __init__(self, module):
         self.module = module
 
-    def _get_task(self, project_id, task_id):
+    def _get_task(self, project_id: int, task_id: str):
         return self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id), \
                Task.query.filter_by(task_id=task_id).first()
 

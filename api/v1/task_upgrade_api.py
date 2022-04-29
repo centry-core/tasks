@@ -14,6 +14,10 @@ from tools import data_tools, constants as c, api_tools, secrets_tools
 
 
 class API(Resource):
+    url_params = [
+        '<int:project_id>',
+    ]
+
     def __init__(self, module):
         self.module = module
 
@@ -31,7 +35,7 @@ class API(Resource):
         setattr(task, "zippath", "tasks/post_processing.zip")
         task.commit()
 
-    def get(self, project_id):
+    def get(self, project_id: int):
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         args = request.args
         if args['name'] not in ['post_processor', 'control_tower', 'all']:
