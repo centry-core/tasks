@@ -13,18 +13,8 @@
 #   limitations under the License.
 
 """ Module """
-
-import flask  # pylint: disable=E0401
-import jinja2  # pylint: disable=E0401
-
-from flask import request, render_template
-
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
-
-from ..shared.utils.api_utils import add_resource_to_api
-
-from .init_db import init_db
 
 
 class Module(module.ModuleModel):
@@ -37,18 +27,24 @@ class Module(module.ModuleModel):
     def init(self):
         """ Init module """
         log.info("Initializing module Tasks")
-        init_db()
-        from .api.tasks import TasksApi
-        from .api.task_upgrade_api import TaskUpgradeApi
-        from .api.task import TaskApi
-        add_resource_to_api(self.context.api, TaskApi, "/task/<int:project_id>/<string:task_id>")
-        add_resource_to_api(self.context.api, TasksApi, "/task/<int:project_id>")
-        add_resource_to_api(self.context.api, TaskUpgradeApi, "/upgrade/<int:project_id>/task")
 
-        from .rpc_worker import tasks_count, create, list_tasks
-        self.context.rpc_manager.register_function(create, name='task_create')
-        self.context.rpc_manager.register_function(list_tasks)
-        self.context.rpc_manager.register_function(tasks_count)
+        from .init_db import init_db
+        init_db()
+
+        self.descriptor.init_api()
+        # add_resource_to_api(self.context.api, TaskApi, "/task/<int:project_id>/<string:task_id>")
+        # add_resource_to_api(self.context.api, TasksApi, "/task/<int:project_id>")
+        # add_resource_to_api(self.context.api, TaskUpgradeApi, "/upgrade/<int:project_id>/task")
+
+        self.descriptor.init_rpcs()
+        # from .rpc_worker import tasks_count, create, list_tasks
+        # self.context.rpc_manager.register_function(create, name='task_create')
+        # self.context.rpc_manager.register_function(list_tasks)
+        # self.context.rpc_manager.register_function(tasks_count)
+
+        from .tools import task_tools
+        self.descriptor.register_tool('task_tools', task_tools)
+
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """
