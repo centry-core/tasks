@@ -43,7 +43,7 @@ def run_task(project_id, event, task_id=None) -> dict:
     task_id = task_id if task_id else secrets["control_tower_id"]
     task = Task.query.filter(and_(Task.task_id == task_id)).first().to_json()
     check_task_quota(task)
-    rpc.call.add_task_execution(project_id=task['project_id'])
+    rpc.call.projects_add_task_execution(project_id=task['project_id'])
     arbiter = get_arbiter()
     task_kwargs = {
         "task": secrets_tools.unsecret(value=task, secrets=secrets, project_id=project_id),
