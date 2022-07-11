@@ -36,7 +36,9 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
     return {"message", "ok"}
 
 
-def run_task(project_id, event, task_id=None) -> dict:
+def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
+    if not queue_name:
+        queue_name = c.RABBIT_QUEUE_NAME
     rpc = rpc_tools.RpcMixin().rpc
     secrets = secrets_tools.get_project_hidden_secrets(project_id=project_id)
     secrets.update(secrets_tools.get_project_secrets(project_id=project_id))
@@ -55,6 +57,6 @@ def run_task(project_id, event, task_id=None) -> dict:
         ),
         "token": secrets_tools.unsecret(value="{{secret.auth_token}}", secrets=secrets, project_id=task['project_id'])
     }
-    arbiter.apply("execute_lambda", queue=c.RABBIT_QUEUE_NAME, task_kwargs=task_kwargs)
+    arbiter.apply("execute_lambda", queue=queue_name, task_kwargs=task_kwargs)
     arbiter.close()
     return {"message": "Accepted", "code": 200, "task_id": task_id}
