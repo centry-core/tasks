@@ -2,6 +2,7 @@ from uuid import uuid4
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
 from arbiter import Arbiter
+from datetime import datetime
 
 from ..models.tasks import Task
 from tools import constants as c, api_tools, rpc_tools, data_tools, secrets_tools
@@ -39,24 +40,24 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
 def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
     if not queue_name:
         queue_name = c.RABBIT_QUEUE_NAME
-    rpc = rpc_tools.RpcMixin().rpc
     secrets = secrets_tools.get_project_hidden_secrets(project_id=project_id)
     secrets.update(secrets_tools.get_project_secrets(project_id=project_id))
     task_id = task_id if task_id else secrets["control_tower_id"]
-    task = Task.query.filter(and_(Task.task_id == task_id)).first().to_json()
+    task = Task.query.filter(and_(Task.task_id == task_id)).first()
     check_task_quota(task)
-    rpc.call.projects_add_task_execution(project_id=task['project_id'])
     arbiter = get_arbiter()
     task_kwargs = {
-        "task": secrets_tools.unsecret(value=task, secrets=secrets, project_id=project_id),
+        "task": secrets_tools.unsecret(value=task.to_json(), secrets=secrets, project_id=project_id),
         "event": secrets_tools.unsecret(value=event, secrets=secrets, project_id=project_id),
         "galloper_url": secrets_tools.unsecret(
             value="{{secret.galloper_url}}",
             secrets=secrets,
-            project_id=task['project_id']
+            project_id=task.project_id
         ),
-        "token": secrets_tools.unsecret(value="{{secret.auth_token}}", secrets=secrets, project_id=task['project_id'])
+        "token": secrets_tools.unsecret(value="{{secret.auth_token}}", secrets=secrets, project_id=task.project_id)
     }
     arbiter.apply("execute_lambda", queue=queue_name, task_kwargs=task_kwargs)
     arbiter.close()
+    task.set_last_run(datetime.utcnow())
+    rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=task.project_id)
     return {"message": "Accepted", "code": 200, "task_id": task_id}

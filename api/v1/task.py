@@ -26,13 +26,13 @@ class API(Resource):
         if args.get("exec"):
             return secrets_tools.unsecret(
                 value=task.to_json(), project_id=project_id)
-        return make_response(task.to_json(), 200)
+        return task.to_json(), 200
 
     def post(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
         event = request.json
         resp = run_task(project.id, event, task.task_id)
-        return make_response(resp, resp.get('code', 200))
+        return resp, resp.get('code', 200)
 
     def put(self, project_id: int, task_id: str):
         args = request.json
@@ -41,9 +41,9 @@ class API(Resource):
         task.region = args.get("region")
         task.env_vars = args.get("env_vars")
         task.commit()
-        return make_response(task.to_json(), 200)
+        return task.to_json(), 200
 
     def delete(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
         task.delete()
-        return make_response(None, 204)
+        return None, 204
