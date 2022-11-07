@@ -58,6 +58,5 @@ def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
     }
     arbiter.apply("execute_lambda", queue=queue_name, task_kwargs=task_kwargs)
     arbiter.close()
-    task.set_last_run(datetime.utcnow())
     rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=task.project_id)
     return {"message": "Accepted", "code": 200, "task_id": task_id}

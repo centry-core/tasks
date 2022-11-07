@@ -29,7 +29,6 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
     runtime = Column(String(128), unique=False, nullable=False)
     region = Column(String(128), unique=False, nullable=False)
     webhook = Column(String(128), unique=False, nullable=True)
-    last_run = Column(DateTime, unique=False, nullable=True)
     env_vars = Column(Text, unique=False, nullable=True)
 
     def insert(self):
@@ -38,10 +37,6 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
         if not self.env_vars:
             self.env_vars = "{}"
         super().insert()
-
-    def set_last_run(self, ts):
-        self.last_run = ts
-        self.commit()
 
     @staticmethod
     def tasks_count(project_id):
