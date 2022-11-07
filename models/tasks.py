@@ -12,7 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, DateTime
 
 from tools import db, db_tools
 
@@ -29,7 +29,7 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
     runtime = Column(String(128), unique=False, nullable=False)
     region = Column(String(128), unique=False, nullable=False)
     webhook = Column(String(128), unique=False, nullable=True)
-    last_run = Column(Integer, unique=False, nullable=True)
+    last_run = Column(DateTime, unique=False, nullable=True)
     env_vars = Column(Text, unique=False, nullable=True)
 
     def insert(self):

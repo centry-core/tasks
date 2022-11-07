@@ -1,4 +1,4 @@
-from flask import make_response, request
+from flask import request
 from flask_restful import Resource
 # from werkzeug.datastructures import FileStorage
 
@@ -26,7 +26,7 @@ class API(Resource):
         total, res = api_tools.get(project_id, args, Task)
         for each in res:
             reports.append(each.to_json())
-        return make_response({"total": total, "rows": reports}, 200)
+        return {"total": total, "rows": reports}, 200
 
     def post(self, project_id: int):
         args = request.json
@@ -34,11 +34,11 @@ class API(Resource):
         if args.get("file"):
             file = args["file"]
             if file.filename == "":
-                return make_response({"message": "file not selected", "code": 400}, 400)
+                return {"message": "file not selected", "code": 400}, 400
         elif args.get("url"):
             file = data_tools.files.File(args.get("url"))
         else:
-            return make_response({"message": "Task file is not specified", "code": 400}, 400)
+            return {"message": "Task file is not specified", "code": 400}, 400
         # TODO: we need to check on storage quota here
         task_id = create_task(project, file, args).task_id
-        return make_response({"file": task_id, "code": 0}, 200)
+        return {"file": task_id, "code": 0}, 200
