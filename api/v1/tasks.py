@@ -8,8 +8,8 @@ from flask_restful import Resource
 
 from ...models.tasks import Task
 from ...tools.task_tools import create_task
-
-from tools import api_tools, data_tools
+from hurry.filesize import size
+from tools import api_tools, data_tools, MinioClient
 
 
 class API(Resource):
@@ -22,11 +22,25 @@ class API(Resource):
 
     def get(self, project_id: int):
         args = request.args
-        reports = []
-        total, res = api_tools.get(project_id, args, Task)
-        for each in res:
-            reports.append(each.to_json())
-        return {"total": total, "rows": reports}, 200
+        get_size = args.get('get_size')
+        total, tasks = api_tools.get(project_id, args, Task)
+
+        if get_size and get_size == 'true':
+            project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+            c = MinioClient(project)
+            files = c.list_files('tasks')
+            for each in files:
+                name = each["name"]
+                task_name = [x.task_name for x in tasks if str(x.zippath).split("/")[-1] == name]
+                task_name = task_name[0] if task_name else ""
+                each["task_name"] = task_name
+                each["size"] = size(each["size"])
+            return {"total": len(files), "rows": files}, 200
+        else:
+            reports = []
+            for each in tasks:
+                reports.append(each.to_json())
+            return {"total": total, "rows": reports}, 200
 
     def post(self, project_id: int):
         args = request.json
