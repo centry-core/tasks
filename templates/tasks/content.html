@@ -1,5 +1,16 @@
 <tasks
     @register="register"
     instance_name="tasks"
-    session="{{ tools.session_project.get() }}">
+    session="{{ tools.session_project.get() }}"
+    :locations='{{locations | tojson}}'
+    :runtimes='{{runtimes}}'
+>
+
+     <template #test_parameters>
+        {{ template_slot("params_table_content", payload={
+            "caption": "Task Parameters",
+            "modal_id": "CreateTaskModal"
+        }) | safe }}
+    </template>
+
 </tasks>

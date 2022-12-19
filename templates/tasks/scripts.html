@@ -1,4 +1,9 @@
 <script src="{{ url_for('design-system.static', filename='assets/js/inputs.js') }}"></script>
 <script src="{{ url_for('tasks.static', filename='js/TasksTable.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/TasksListAside.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('tasks.static', filename='js/CreateTaskModal.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/Tasks.js') }}" type="text/javascript"></script>
+
+{{ template_slot('params_table_scripts') | safe }}
+{{ template_slot('locations_scripts') | safe }}
+

@@ -53,7 +53,7 @@ const TasksListAside = {
                     <div class="d-flex justify-content-end">
                         <button type="button"
                              data-toggle="modal" 
-                             data-target="#bucketModal"
+                             data-target="#CreateTaskModal"
                              class="btn btn-secondary btn-sm btn-icon__sm mr-2">
                             <i class="fas fa-plus"></i>
                         </button>

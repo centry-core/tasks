@@ -7,9 +7,11 @@ from flask_restful import Resource
 # from ...shared.utils.api_utils import build_req_parser, get
 
 from ...models.tasks import Task
+from ...models.validation_pd import TaskCreateModelPD
 from ...tools.task_tools import create_task
 from hurry.filesize import size
 from tools import api_tools, data_tools, MinioClient
+from pydantic import ValidationError
 
 
 class API(Resource):
@@ -45,6 +47,12 @@ class API(Resource):
     def post(self, project_id: int):
         args = request.json
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+
+        try:
+            pd_obj = TaskCreateModelPD(project_id=project_id, **request.json)
+        except ValidationError as e:
+            return e.errors(), 400
+
         if args.get("file"):
             file = args["file"]
             if file.filename == "":

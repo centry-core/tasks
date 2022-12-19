@@ -1,6 +1,7 @@
 const Tasks = {
-    props: ['session'],
+    props: ['session', 'locations', 'runtimes'],
     components: {
+        'create-task-modal': CreateTaskModal,
         'tasks-list-aside': TasksListAside,
         'tasks-table': TasksTable,
     },
@@ -19,7 +20,6 @@ const Tasks = {
     },
     mounted() {
         const vm = this;
-
         this.fetchTasks().then(data => {
             $("#task-aside-table").bootstrapTable('append', data.rows);
             this.bucketCount = data.rows.length;
@@ -56,6 +56,7 @@ const Tasks = {
         },
         setTaskEvent(taskList, resultList) {
             const vm = this;
+            // console.log('s', this.locations)
             $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function(event) {
                 const selectedUniqId = this.getAttribute('data-uniqueid');
                 vm.selectedTaskObj = taskList.find(row => row.task_name === selectedUniqId);
@@ -164,15 +165,20 @@ const Tasks = {
                 :task-info="taskInfo"
                 @refresh="refresh">
             </tasks-table>
-<!--            <artifact-bucket-modal-->
-<!--                @refresh-bucket="refreshBucketTable">-->
-<!--            </artifact-bucket-modal>-->
-<!--            <artifact-confirm-modal-->
-<!--                v-if="showConfirm"-->
-<!--                @close-confirm="openConfirm"-->
-<!--                :loading-delete="loadingDelete"-->
-<!--                @delete-bucket="switcherDeletingBucket">-->
-<!--            </artifact-confirm-modal>-->
+            <create-task-modal
+                @refresh-bucket="refreshBucketTable"
+                :locations="locations"
+                :runtimes="runtimes"
+                >
+                
+                <slot name='test_parameters'></slot>
+            </create-task-modal>
+            <artifact-confirm-modal
+                v-if="showConfirm"
+                @close-confirm="openConfirm"
+                :loading-delete="loadingDelete"
+                @delete-bucket="switcherDeletingBucket">
+            </artifact-confirm-modal>
         </main>
     `
 };
