@@ -1,5 +1,9 @@
+import json
+
 from flask import request
 from flask_restful import Resource
+
+from pydantic import ValidationError
 # from werkzeug.datastructures import FileStorage
 
 # from ...shared.utils.restApi import RestResource
@@ -8,10 +12,9 @@ from flask_restful import Resource
 
 from ...models.tasks import Task
 from ...models.validation_pd import TaskCreateModelPD
-from ...tools.task_tools import create_task
 from hurry.filesize import size
 from tools import api_tools, data_tools, MinioClient
-from pydantic import ValidationError
+from ...tools import task_tools
 
 
 class API(Resource):
@@ -27,7 +30,7 @@ class API(Resource):
         get_size = args.get('get_size')
         total, tasks = api_tools.get(project_id, args, Task)
 
-        if get_size and get_size == 'true':
+        if get_size and get_size.lower() == 'true':
             project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
             c = MinioClient(project)
             files = c.list_files('tasks')
@@ -45,22 +48,40 @@ class API(Resource):
             return {"total": total, "rows": reports}, 200
 
     def post(self, project_id: int):
-        args = request.json
-        project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+        file = request.files.get('file')
+        data = json.loads(request.form.get('data')) if request.form.get('data') else None
+        if data is None:
+            return {"message": "Empty data object"}, 400
+
+        if file is not None:
+            data['task_package'] = file.filename
 
         try:
-            pd_obj = TaskCreateModelPD(project_id=project_id, **request.json)
+            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
         except ValidationError as e:
             return e.errors(), 400
 
-        if args.get("file"):
-            file = args["file"]
-            if file.filename == "":
-                return {"message": "file not selected", "code": 400}, 400
-        elif args.get("url"):
-            file = data_tools.files.File(args.get("url"))
-        else:
-            return {"message": "Task file is not specified", "code": 400}, 400
-        # TODO: we need to check on storage quota here
-        task_id = create_task(project, file, args).task_id
-        return {"file": task_id, "code": 0}, 200
+        if file is None:
+            return {"message": "Validations are passed. Upload task_package file."}, 200
+
+        task_payload = {
+            "funcname": pd_obj.dict().pop('task_name'),
+            "invoke_func": pd_obj.dict().pop('task_handler'),
+            "region": pd_obj.dict().pop('engine_location'),
+            "runtime": pd_obj.dict().pop('runtime'),
+            "env_vars": json.dumps({
+                "cpu_cores": pd_obj.dict().pop('cpu_cores'),
+                "memory": pd_obj.dict().pop('memory'),
+                "timeout": pd_obj.dict().pop('timeout'),
+                **pd_obj.dict().pop('task_parameters')
+            })
+        }
+
+        project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+        task = task_tools.create_task(
+            project=project,
+            file=file,
+            args=task_payload
+
+        )
+        return {"task_id": task.id, "message": f"Task {task_payload['funcname']} created"}, 201

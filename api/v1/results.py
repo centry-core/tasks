@@ -23,12 +23,11 @@ class API(Resource):
         rows = defaultdict(list)
 
         total, res = api_tools.get(project_id, args, TaskResults)
-        t_format = "%Y-%m-%dT%H:%M:%S.000Z"
         for row in res:
             task = Task.query.filter_by(project_id=project_id, task_id=row.task_id).first()
             # logging.info(f'task id :{row.task_id}')
             data = row.to_json()
-            data["ts"] = datetime.fromtimestamp(row.ts).strftime(t_format)
+            data["ts"] = api_tools.format_date(datetime.fromtimestamp(row.ts))
             rows[task.task_name].append(data)
         return make_response({"total": total, "rows": rows}, 200)
 
