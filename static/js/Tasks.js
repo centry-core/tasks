@@ -166,7 +166,7 @@ const Tasks = {
                 @refresh="refresh">
             </tasks-table>
             <create-task-modal
-                @refresh-bucket="refreshBucketTable"
+                @refresh-task="refreshTaskTable"
                 :locations="locations"
                 :runtimes="runtimes"
                 >

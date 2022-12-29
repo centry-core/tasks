@@ -5,95 +5,123 @@ const CreateTaskModal = {
     },
     props: ['locations', 'runtimes'],
     data() {
-        return {
-            task_name: null,
-            error: {},
-
-            location: 'default',
-            cpu_quota: null,
-            memory_quota: null,
-            cloud_settings: {},
-            timeout: 0,
-
-            applyClicked: false,
-            isValidBucket: false,
-            isLoading: false,
-        }
+        return this.initial_state()
     },
-     get_data() {
-
-         return {
-                task_name: this.task_name,
-                runtime: this.runtime,
-                task_handler: this.task_handler,
-                location: this.location,
-                parallel_runners: this.parallel_runners,
-                cpu: this.cpu,
-                memory: this.memory,
-                cloud_settings: this.cloud_settings
-            }
-        },
     mounted() {
         $('#task_modal_parallel').closest('div.custom-input').hide()
         // this.get_data()
     },
-    watch: {
+    computed: {
+         test_parameters() {
+            return ParamsTable.Manager("CreateTaskModal_test_params")
+        },
+
     },
     methods: {
-        handleFiles(e) {
-            console.log('files', e)
-            const file = e.target.files
-            console.log(file)
-            //([...files]).forEach(uploadFile)
+        initial_state() {
+            return {
+            task_name: null,
+
+            runtime: null,
+            task_handler: null,
+
+            location: 'default',
+            cpu_quota: 1,
+            memory_quota: 4,
+            cloud_settings: {},
+            timeout: 5,
+
+            isLoading: false,
+            previewFile: null,
+            file: null,
+            error: {}
+        }
         },
+        get_data() {
+         return {
+             "task_name": this.task_name,
+             "task_package": this.previewFile,
+             "runtime": this.runtime,
+             "task_handler": this.task_handler,
+             "engine_location": this.location,
+             "cpu_cores": this.cpu_quota,
+             "memory": this.memory_quota,
+             "timeout": this.timeout,
+             "task_parameters": this.test_parameters.get()
+         }
+    },
      uploadFile(e) {
-            this.File = e.target.files;
+         const file =  e.target.files[0];
+         console.log(file)
+          this.previewFile = file.name
+         this.file = file
+         return file
         },
       onDrop(e) {
-        console.log(e)
-        this.File = e.dataTransfer.files;
-        console.log(this.File)
+         const file =  e.dataTransfer.files[0];
+         this.previewFile = file.name
+          console.log(file)
+          this.file = file
+          return file
         },
         setTimeout(val){
             this.timeout = val;
-            console.log(this.timeout)
         },
-        saveTask() {
-            this.applyClicked = true;
-            if (this.isValidBucket) {
-                this.isLoading = true;
-                fetch(`/api/v1/artifacts/buckets/${getSelectedProjectId()}`,{
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', dataType: 'json'},
-                    body: JSON.stringify({
-                        "name": this.bucketData.name,
-                        "expiration_measure": (this.bucketData.retention).toLowerCase(),
-                        "expiration_value": String(this.bucketData.expiration),
-                    })
-                }).then((response) => {
-                    if (response.status === 200) {
-                        return response.json();
-                    } else if (response.status === 400){
-                        throw new Error('Bucket\'s name is exist!');
+        async createTask(data){
+            const resp = await fetch(`/api/v1/tasks/tasks/${getSelectedProjectId()}`,{
+                method: 'POST',
+                body: data,
+            })
+                return resp.json()
+        },
+
+        handleError(response) {
+            try {
+                response.json().then(
+                    errorData => {
+                        errorData.forEach(item => {
+                            this.error = {[item.loc[0]]: item.msg}
+                        })
                     }
-                }).then(data => {
-                    this.isLoading = false;
-                    this.applyClicked = false;
-                    this.bucketData.name = '';
-                    $('#bucketModal').modal('hide');
-                    this.$emit('refresh-bucket', data.id);
-                    showNotify('SUCCESS', 'Bucket created.');
-                }).catch(err => {
-                    this.isLoading = false;
-                    showNotify('ERROR', err);
-                })
+                )
+            } catch (e) {
+                alertMain.add(e, 'danger-overlay')
             }
         },
         hasError(value) {
             return value.length > 0;
         },
-        showError(value) {
-            return this.applyClicked ? value.length > 0 : true;
+        saveTask() {
+            this.isLoading = true;
+            let data = new FormData()
+            console.log(this.get_data())
+            data.append('data', JSON.stringify(this.get_data()))
+
+
+           this.createTask(data).then(response => {
+                if (response.ok) {
+                    console.log('ok')
+                    return response.json();
+                } else if (response.status === 400){
+                   this.handleError(response)
+                }
+            }).then(response => {
+                data.append('file',this.file)
+                this.createTask(data).then( response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    else if (response.status === 400){
+                        this.handleError(response)
+                }
+                })
+                $('#CreateTaskModal').modal('hide');
+                showNotify('SUCCESS', 'Task Created.');
+            }).catch(err => {
+                this.isLoading = false;
+                showNotify('ERROR', err);
+            })
+
         },
     },
     template: `
@@ -138,10 +166,10 @@ const CreateTaskModal = {
                                         </p>
                                      
                                     <div id="dragDropArea" class="drop-area" @dragover.prevent @drop.stop.prevent="onDrop">
-                                          <input type="file" id="dropInput" multiple accept="*"@change="handleFiles">
+                                          <input type="file" id="dropInput" multiple accept="*"@change="uploadFile">
                                           <label for="dropInput" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
                                     </div>
-                                    
+                                    <span v-show="previewFile" class="preview-area_item preview-area_close"> [[previewFile]]</span>
                             </div>
                             <div class="form-group col-6">
                                     <h5>Runtime</h5>
@@ -185,7 +213,7 @@ const CreateTaskModal = {
                           <div class="custom-input ml-3">
                             <p class="custom-input_desc mb-1">Timeout, Sec</p>
                             <input-stepper 
-                                :default-value="0"
+                                :default-value="5"
                                 @change="setTimeout"
                                 :uniq_id="task_modal"
                             ></input-stepper>

@@ -1,4 +1,5 @@
 import json
+import logging
 
 from flask import request
 from flask_restful import Resource
@@ -73,7 +74,7 @@ class API(Resource):
                 "cpu_cores": pd_obj.dict().pop('cpu_cores'),
                 "memory": pd_obj.dict().pop('memory'),
                 "timeout": pd_obj.dict().pop('timeout'),
-                **pd_obj.dict().pop('task_parameters')
+                "task_parameters": pd_obj.dict().pop('task_parameters')
             })
         }
 
