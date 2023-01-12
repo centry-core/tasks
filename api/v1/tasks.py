@@ -26,6 +26,10 @@ class API(Resource):
     def __init__(self, module):
         self.module = module
 
+    def _get_task(self, project_id: int, task_id: str):
+        return self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id), \
+               Task.query.filter_by(task_id=task_id).first()
+
     def get(self, project_id: int):
         args = request.args
         get_size = args.get('get_size')
@@ -86,3 +90,27 @@ class API(Resource):
 
         )
         return {"task_id": task.id, "message": f"Task {task_payload['funcname']} created"}, 201
+
+    def put(self, project_id: int, task_id: str):
+        data = json.loads(request.form.get('data')) if request.form.get('data') else None
+
+        if data is None:
+            return {"message": "Empty data object"}, 400
+
+        try:
+            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
+        except ValidationError as e:
+            return e.errors(), 400
+
+        project, task = self._get_task(project_id, task_id)
+        task.task_handler = pd_obj.dict().get("invoke_func")
+        task.region = pd_obj.dict().get("region")
+        task.runtime = pd_obj.dict().get("runtime")
+        task.env_vars = pd_obj.dict().get("env_vars")
+        task.commit()
+        return task.to_json(), 200
+
+    def delete(self, project_id: int, task_id: str):
+        project, task = self._get_task(project_id, task_id)
+        task.delete()
+        return None, 204
