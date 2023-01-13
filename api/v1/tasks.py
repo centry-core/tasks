@@ -1,5 +1,10 @@
+import json
+import logging
+
 from flask import request
 from flask_restful import Resource
+
+from pydantic import ValidationError
 # from werkzeug.datastructures import FileStorage
 
 # from ...shared.utils.restApi import RestResource
@@ -7,9 +12,10 @@ from flask_restful import Resource
 # from ...shared.utils.api_utils import build_req_parser, get
 
 from ...models.tasks import Task
-from ...tools.task_tools import create_task
-
-from tools import api_tools, data_tools
+from ...models.validation_pd import TaskCreateModelPD
+from hurry.filesize import size
+from tools import api_tools, data_tools, MinioClient
+from ...tools import task_tools
 
 
 class API(Resource):
@@ -20,25 +26,91 @@ class API(Resource):
     def __init__(self, module):
         self.module = module
 
+    def _get_task(self, project_id: int, task_id: str):
+        return self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id), \
+               Task.query.filter_by(task_id=task_id).first()
+
     def get(self, project_id: int):
         args = request.args
-        reports = []
-        total, res = api_tools.get(project_id, args, Task)
-        for each in res:
-            reports.append(each.to_json())
-        return {"total": total, "rows": reports}, 200
+        get_size = args.get('get_size')
+        total, tasks = api_tools.get(project_id, args, Task)
+
+        if get_size and get_size.lower() == 'true':
+            project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+            c = MinioClient(project)
+            files = c.list_files('tasks')
+            for each in files:
+                name = each["name"]
+                task_name = [x.task_name for x in tasks if str(x.zippath).split("/")[-1] == name]
+                task_name = task_name[0] if task_name else ""
+                each["task_name"] = task_name
+                each["size"] = size(each["size"])
+            return {"total": len(files), "rows": files}, 200
+        else:
+            reports = []
+            for each in tasks:
+                reports.append(each.to_json())
+            return {"total": total, "rows": reports}, 200
 
     def post(self, project_id: int):
-        args = request.json
+        file = request.files.get('file')
+        data = json.loads(request.form.get('data')) if request.form.get('data') else None
+        if data is None:
+            return {"message": "Empty data object"}, 400
+
+        if file is not None:
+            data['task_package'] = file.filename
+
+        try:
+            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
+        except ValidationError as e:
+            return e.errors(), 400
+
+        if file is None:
+            return {"message": "Validations are passed. Upload task_package file."}, 200
+
+        task_payload = {
+            "funcname": pd_obj.dict().pop('task_name'),
+            "invoke_func": pd_obj.dict().pop('task_handler'),
+            "region": pd_obj.dict().pop('engine_location'),
+            "runtime": pd_obj.dict().pop('runtime'),
+            "env_vars": json.dumps({
+                "cpu_cores": pd_obj.dict().pop('cpu_cores'),
+                "memory": pd_obj.dict().pop('memory'),
+                "timeout": pd_obj.dict().pop('timeout'),
+                "task_parameters": pd_obj.dict().pop('task_parameters')
+            })
+        }
+
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
-        if args.get("file"):
-            file = args["file"]
-            if file.filename == "":
-                return {"message": "file not selected", "code": 400}, 400
-        elif args.get("url"):
-            file = data_tools.files.File(args.get("url"))
-        else:
-            return {"message": "Task file is not specified", "code": 400}, 400
-        # TODO: we need to check on storage quota here
-        task_id = create_task(project, file, args).task_id
-        return {"file": task_id, "code": 0}, 200
+        task = task_tools.create_task(
+            project=project,
+            file=file,
+            args=task_payload
+
+        )
+        return {"task_id": task.id, "message": f"Task {task_payload['funcname']} created"}, 201
+
+    def put(self, project_id: int, task_id: str):
+        data = json.loads(request.form.get('data')) if request.form.get('data') else None
+
+        if data is None:
+            return {"message": "Empty data object"}, 400
+
+        try:
+            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
+        except ValidationError as e:
+            return e.errors(), 400
+
+        project, task = self._get_task(project_id, task_id)
+        task.task_handler = pd_obj.dict().get("invoke_func")
+        task.region = pd_obj.dict().get("region")
+        task.runtime = pd_obj.dict().get("runtime")
+        task.env_vars = pd_obj.dict().get("env_vars")
+        task.commit()
+        return task.to_json(), 200
+
+    def delete(self, project_id: int, task_id: str):
+        project, task = self._get_task(project_id, task_id)
+        task.delete()
+        return None, 204

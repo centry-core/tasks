@@ -17,8 +17,8 @@ from sqlalchemy import String, Column, Integer, Text
 from tools import db, db_tools
 
 
-class Results(db_tools.AbstractBaseMixin, db.Base):
-    __tablename__ = "results"
+class TaskResults(db_tools.AbstractBaseMixin, db.Base):
+    __tablename__ = "task_results"
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, unique=False, nullable=False)

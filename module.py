@@ -15,6 +15,7 @@
 """ Module """
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import module  # pylint: disable=E0611,E0401
+from tools import theme
 
 
 class Module(module.ModuleModel):
@@ -32,6 +33,7 @@ class Module(module.ModuleModel):
         init_db()
 
         self.descriptor.init_api()
+        self.descriptor.init_blueprint()
         # add_resource_to_api(self.context.api, TaskApi, "/task/<int:project_id>/<string:task_id>")
         # add_resource_to_api(self.context.api, TasksApi, "/task/<int:project_id>")
         # add_resource_to_api(self.context.api, TaskUpgradeApi, "/upgrade/<int:project_id>/task")
@@ -42,9 +44,18 @@ class Module(module.ModuleModel):
         # self.context.rpc_manager.register_function(list_tasks)
         # self.context.rpc_manager.register_function(tasks_count)
 
+        theme.register_subsection(
+            "configuration", "tasks",
+            "Tasks",
+            title="Tasks",
+            kind="slot",
+            prefix="tasks_",
+            weight=5,
+        )
+        self.descriptor.init_slots()
+
         from .tools import task_tools
         self.descriptor.register_tool('task_tools', task_tools)
-
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """

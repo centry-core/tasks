@@ -2,9 +2,9 @@ from uuid import uuid4
 from werkzeug.utils import secure_filename
 from sqlalchemy import and_
 from arbiter import Arbiter
-from datetime import datetime
 
 from ..models.tasks import Task
+from ..models.results import TaskResults
 from tools import constants as c, api_tools, rpc_tools, data_tools, secrets_tools
 
 
@@ -60,3 +60,14 @@ def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
     arbiter.close()
     rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=task.project_id)
     return {"message": "Accepted", "code": 200, "task_id": task_id}
+
+
+def create_task_result(project_id: int,  data: dict):
+    task_result = TaskResults(
+        project_id=project_id,
+        task_id=data.get('task_id'),
+        ts=data.get('ts'),
+        results=data.get('results'),
+        log=data.get('log'))
+    task_result.insert()
+    return task_result
