@@ -166,7 +166,7 @@ const CreateTaskModal = {
                                         </p>
                                      
                                     <div id="dragDropArea" class="drop-area" @dragover.prevent @drop.stop.prevent="onDrop">
-                                          <input type="file" id="dropInput" multiple accept="*"@change="uploadFile">
+                                          <input type="file" id="dropInput" multiple accept="*" @change="uploadFile">
                                           <label for="dropInput" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
                                     </div>
                                     <span v-show="previewFile" class="preview-area_item preview-area_close"> [[previewFile]]</span>
@@ -176,7 +176,7 @@ const CreateTaskModal = {
                                     <p>
                                         <h13>Choose the language to use to write your function</h13>
                                     </p>
-                                     <select class="selectpicker bootstrap-select__b" data-style="btn" 
+                                     <select class="selectpicker bootstrap-select__b" 
                                         id="CreateTaskFields"
                                         data-style="btn"
                                         v-model="runtime"
@@ -206,7 +206,6 @@ const CreateTaskModal = {
                                         v-model:cpu="cpu_quota"
                                         v-model:memory="memory_quota"
                                         v-model:cloud_settings="cloud_settings"
-                                        modal_id="task_modal"
                                         v-bind="locations"
                                         >
                              </Locations>
@@ -215,7 +214,6 @@ const CreateTaskModal = {
                             <input-stepper 
                                 :default-value="5"
                                 @change="setTimeout"
-                                :uniq_id="task_modal"
                             ></input-stepper>
                             </div>
                             
