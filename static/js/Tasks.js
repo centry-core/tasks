@@ -7,21 +7,26 @@ const Tasks = {
     },
     data() {
         return {
-            selectedTask: null,
+            selectedBucket: {
+                name: null,
+            },
             selectedTaskRowIndex: null,
             loadingDelete: false,
             isInitDataFetched: false,
             showConfirm: false,
+            bucketCount: null,
             taskInfo: {
                 "webhook": null,
                 "task_id": null
             },
+            checkedBucketsList: [],
         }
     },
     mounted() {
         const vm = this;
         this.fetchTasks().then(data => {
             $("#task-aside-table").bootstrapTable('append', data.rows);
+            this.setBucketEvent(data.rows);
             this.bucketCount = data.rows.length;
             this.isInitDataFetched = true;
             if (data.rows.length > 0) {
@@ -30,18 +35,17 @@ const Tasks = {
             return data
         }).then(data => {
             this.fetchTasksInfo().then(taskInfo => {
-                vm.taskInfoFetched = taskInfo
+                console.log(taskInfo)
+                vm.taskInfoFetched = taskInfo;
             })
             return data
         }).then((taskRows) => {
             if (taskRows.rows.length > 0) {
                  vm.fetchTaskResults().then(resultRows => {
-                     vm.setTaskEvent(taskRows.rows, resultRows.rows);
+                     console.log(resultRows)
                 })
             }
         })
-
-
     },
     methods: {
         getTaskInfo(data, taskName){
@@ -54,23 +58,22 @@ const Tasks = {
             });
             return taskInfo
         },
-        setTaskEvent(taskList, resultList) {
+        setBucketEvent(taskList, resultList) {
             const vm = this;
-            // console.log('s', this.locations)
             $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function(event) {
                 const selectedUniqId = this.getAttribute('data-uniqueid');
-                vm.selectedTaskObj = taskList.find(row => row.task_name === selectedUniqId);
+                vm.selectedBucket = taskList.find(row => row.task_name === selectedUniqId);
                 $(this).addClass('highlight').siblings().removeClass('highlight');
-                vm.selectedTask = vm.selectedTaskObj.name
-                const taskName = vm.selectedTaskObj.task_name
+                // vm.selectedTask = vm.selectedBucked.name
+                // const taskName = vm.selectedBucked.task_name
 
-                // TODO: need to optimize ? it's being called on each click with full json obj.
-                vm.taskInfo = vm.getTaskInfo(vm.taskInfoFetched, taskName)
-
-                if (resultList.hasOwnProperty(taskName)){
-                    vm.tableData = resultList[taskName]
-                    vm.refreshTaskTable(vm.tableData);
-                }
+                // // TODO: need to optimize ? it's being called on each click with full json obj.
+                // vm.taskInfo = vm.getTaskInfo(vm.taskInfoFetched, taskName)
+                //
+                // if (resultList.hasOwnProperty(taskName)){
+                //     vm.tableData = resultList[taskName]
+                //     vm.refreshTaskTable(vm.tableData);
+                // }
             });
         },
         async fetchTasksInfo() {
@@ -120,19 +123,22 @@ const Tasks = {
                     const firstRow = $(item);
                     firstRow.addClass('highlight');
                     vm.selectedTaskRowIndex = 0;
-                    vm.selectedBucked = this.childNodes[vm.getTaskNameCallIndex(this)].innerHTML;
+                    // vm.selectedBucket = this.childNodes[vm.getTaskNameCallIndex(this)].innerHTML;
                 }
             })
         },
         refresh() {
             this.refreshBucketTable();
-            this.refreshArtifactTable(this.selectedBucked, true);
+            this.refreshArtifactTable(this.selectedBucket, true);
         },
 
         openConfirm(type) {
             this.bucketDeletingType = type;
             this.showConfirm = !this.showConfirm;
         },
+        updateBucketList(buckets) {
+            this.checkedBucketsList = buckets;
+        }
     },
     computed: {
         // taskDetail() {
@@ -157,11 +163,15 @@ const Tasks = {
         <main class="d-flex align-items-start justify-content-center mb-3">
             <tasks-list-aside
                 @open-confirm="openConfirm"
+                @update-bucket-list="updateBucketList"
+                :checked-buckets-list="checkedBucketsList"
+                :bucket-count="bucketCount"
+                :selected-bucket="selectedBucket"
                 :selected-task-row-index="selectedTaskRowIndex"
                 :is-init-data-fetched="isInitDataFetched">
             </tasks-list-aside>
             <tasks-table
-                :selected-task="selectedTask"
+                :selected-task="selectedBucket"
                 :task-info="taskInfo"
                 @refresh="refresh">
             </tasks-table>
@@ -170,15 +180,14 @@ const Tasks = {
                 :locations="locations"
                 :runtimes="runtimes"
                 >
-                
                 <slot name='test_parameters'></slot>
             </create-task-modal>
-            <artifact-confirm-modal
-                v-if="showConfirm"
-                @close-confirm="openConfirm"
-                :loading-delete="loadingDelete"
-                @delete-bucket="switcherDeletingBucket">
-            </artifact-confirm-modal>
+<!--            <artifact-confirm-modal-->
+<!--                v-if="showConfirm"-->
+<!--                @close-confirm="openConfirm"-->
+<!--                :loading-delete="loadingDelete"-->
+<!--                @delete-bucket="switcherDeletingBucket">-->
+<!--            </artifact-confirm-modal>-->
         </main>
     `
 };
