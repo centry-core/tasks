@@ -1,17 +1,13 @@
 const TasksListAside = {
-    props: ['isInitDataFetched', 'selectedBucket', 'selectedTaskRowIndex', 'checkedBucketsList', 'bucketCount'],
+    props: ['isInitDataFetched', 'selectedTask', 'selectedTaskRowIndex', 'checkedBucketsList', 'bucketCount'],
     data() {
         return {
-            canSelectItems: false,
             loadingDelete: false,
         }
     },
     computed: {
-        isAnyBucketSelected() {
-            return this.checkedBucketsList.length > 0;
-        },
         responsiveTableHeight() {
-            return `${(window.innerHeight - 210)}px`;
+            return `${(window.innerHeight - 270)}px`;
         }
     },
     watch: {
@@ -22,36 +18,11 @@ const TasksListAside = {
     methods: {
         setBucketEvents() {
             const vm = this;
-            $('#task-aside-table').on('check.bs.table', (row, $element) => {
-                const buckets = [...this.checkedBucketsList, $element.name]
-                this.$emit('update-bucket-list', buckets);
-            });
-            $('#task-aside-table').on('uncheck.bs.table', (row, $element) => {
-                const buckets = this.checkedBucketsList.filter(bucket => {
-                    return $element.name !== bucket
-                })
-                this.$emit('update-bucket-list', buckets);
-            });
-            $('#task-aside-table').on('uncheck-all.bs.table', (row, $element) => {
-                this.$emit('update-bucket-list', []);
-            });
-            $('#task-aside-table').on('check-all.bs.table', (rowsAfter, rowsBefore) => {
-                const buckets = rowsBefore.map(row => row.name);
-                this.$emit('update-bucket-list', buckets);
-            });
             $('#task-aside-table').on('sort.bs.table', function (name, order) {
                 vm.$nextTick(() => {
-                    $('#task-aside-table').find(`[data-uniqueid='${vm.selectedBucket.id}']`).addClass('highlight');
+                    $('#task-aside-table').find(`[data-uniqueid='${vm.selectedTask.task_name}']`).addClass('highlight');
                 })
             });
-        },
-        switchSelectItems() {
-            this.canSelectItems = !this.canSelectItems;
-            const action = this.canSelectItems ? 'hideColumn' : 'showColumn';
-            $('#task-aside-table').bootstrapTable(action, 'select');
-            document.getElementById("task-aside-table")
-                .rows[this.selectedBucketRowIndex + 1]
-                .classList.add('highlight');
         },
     },
     template: `
@@ -68,16 +39,6 @@ const TasksListAside = {
                              class="btn btn-secondary btn-sm btn-icon__sm mr-2">
                             <i class="fas fa-plus"></i>
                         </button>
-<!--                        <button type="button" class="btn btn-secondary btn-sm btn-icon__sm mr-2"-->
-<!--                            @click="switchSelectItems">-->
-<!--                            <i class="icon__18x18 icon-multichoice"></i>-->
-<!--                        </button>-->
-<!--                        <button type="button" -->
-<!--                            @click="$emit('open-confirm', 'multiple')"-->
-<!--                            :disabled="!isAnyBucketSelected"-->
-<!--                            class="btn btn-secondary btn-sm btn-icon__sm mr-2">-->
-<!--                            <i class="fas fa-trash-alt"></i>-->
-<!--                        </button>-->
                     </div>
                 </div>
             </div>
@@ -114,8 +75,8 @@ const TasksListAside = {
 var bucketEvents = {
     "click .bucket_delete": function (e, value, row, index) {
         e.stopPropagation();
-        const vm = vueVm.registered_components.artifact
-        vm.openConfirm('single');
+        const vm = vueVm.registered_components.tasks;
+        vm.openConfirm();
     },
     "click .bucket_setting": function (e, value, row, index) {
         console.log("bucket_setting", row, index)
