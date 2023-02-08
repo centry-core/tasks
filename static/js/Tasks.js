@@ -1,19 +1,22 @@
 const Tasks = {
     props: ['session', 'locations', 'runtimes'],
     components: {
-        'create-task-modal': CreateTaskModal,
+        'create-task-modal': TasksCreateModal,
         'tasks-list-aside': TasksListAside,
         'tasks-table': TasksTable,
+        'tasks-confirm-modal' : TasksConfirmModal,
+        'tasks-run-task-modal' : TasksRunTaskModal,
     },
     data() {
         return {
-            selectedBucket: {
-                name: null,
+            selectedTask: {
+                task_name: null,
             },
             selectedTaskRowIndex: null,
             loadingDelete: false,
             isInitDataFetched: false,
             showConfirm: false,
+            showModalRunTest: false,
             bucketCount: null,
             taskInfo: {
                 "webhook": null,
@@ -30,6 +33,7 @@ const Tasks = {
             this.bucketCount = data.rows.length;
             this.isInitDataFetched = true;
             if (data.rows.length > 0) {
+                vm.selectedTask = data.rows[0];
                 this.selectFirstTask();
             }
             return data
@@ -62,18 +66,8 @@ const Tasks = {
             const vm = this;
             $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function(event) {
                 const selectedUniqId = this.getAttribute('data-uniqueid');
-                vm.selectedBucket = taskList.find(row => row.task_name === selectedUniqId);
+                vm.selectedTask = taskList.find(row => row.task_name === selectedUniqId);
                 $(this).addClass('highlight').siblings().removeClass('highlight');
-                // vm.selectedTask = vm.selectedBucked.name
-                // const taskName = vm.selectedBucked.task_name
-
-                // // TODO: need to optimize ? it's being called on each click with full json obj.
-                // vm.taskInfo = vm.getTaskInfo(vm.taskInfoFetched, taskName)
-                //
-                // if (resultList.hasOwnProperty(taskName)){
-                //     vm.tableData = resultList[taskName]
-                //     vm.refreshTaskTable(vm.tableData);
-                // }
             });
         },
         async fetchTasksInfo() {
@@ -97,7 +91,6 @@ const Tasks = {
             })
             return res.json();
         },
-
         refreshTaskTable(taskResults) {
             $("#task-table").bootstrapTable('load', taskResults);
         },
@@ -106,16 +99,6 @@ const Tasks = {
                 $("#task-table").bootstrapTable('load', data.rows);
             })
         },
-        getTaskNameCallIndex(row) {
-            let taskCallIndex;
-            row.childNodes.forEach((node, index) => {
-                const isTaskNameCell = node.className.split(' ').includes('task-name');
-                if (isTaskNameCell) {
-                    taskCallIndex = index;
-                }
-            })
-            return taskCallIndex;
-        },
         selectFirstTask() {
             const vm = this;
             $('#task-aside-table tbody tr').each(function(i, item) {
@@ -123,41 +106,27 @@ const Tasks = {
                     const firstRow = $(item);
                     firstRow.addClass('highlight');
                     vm.selectedTaskRowIndex = 0;
-                    // vm.selectedBucket = this.childNodes[vm.getTaskNameCallIndex(this)].innerHTML;
                 }
             })
         },
         refresh() {
             this.refreshBucketTable();
-            this.refreshArtifactTable(this.selectedBucket, true);
+            this.refreshArtifactTable(this.selectedTask, true);
         },
-
-        openConfirm(type) {
-            this.bucketDeletingType = type;
+        openConfirm() {
             this.showConfirm = !this.showConfirm;
         },
         updateBucketList(buckets) {
             this.checkedBucketsList = buckets;
-        }
-    },
-    computed: {
-        // taskDetail() {
-        //     const {
-        //         env_vars,
-        //         id,
-        //         last_run,
-        //         project_id,
-        //         region,
-        //         runtime,
-        //         task_handler,
-        //         task_id,
-        //         task_name,
-        //         webhook,
-        //         zippath,
-        //     } = this
-        //     console.log('yaaxxaaa', env_vars)
-        //     return {env_vars, id, last_run, project_id, region, runtime, task_handler, task_id, task_name, webhook, zippath}
-        // },
+        },
+        deleteTask() {
+            this.loadingDelete = true;
+            setTimeout(() => {
+                showNotify('SUCCESS', 'Bucket delete.');
+                this.loadingDelete = false;
+                this.showConfirm = !this.showConfirm;
+            }, 1000);
+        },
     },
     template: `
         <main class="d-flex align-items-start justify-content-center mb-3">
@@ -166,12 +135,12 @@ const Tasks = {
                 @update-bucket-list="updateBucketList"
                 :checked-buckets-list="checkedBucketsList"
                 :bucket-count="bucketCount"
-                :selected-bucket="selectedBucket"
+                :selected-="selectedTask"
                 :selected-task-row-index="selectedTaskRowIndex"
                 :is-init-data-fetched="isInitDataFetched">
             </tasks-list-aside>
             <tasks-table
-                :selected-task="selectedBucket"
+                :selected-task="selectedTask"
                 :task-info="taskInfo"
                 @refresh="refresh">
             </tasks-table>
@@ -182,12 +151,15 @@ const Tasks = {
                 >
                 <slot name='test_parameters'></slot>
             </create-task-modal>
-<!--            <artifact-confirm-modal-->
-<!--                v-if="showConfirm"-->
-<!--                @close-confirm="openConfirm"-->
-<!--                :loading-delete="loadingDelete"-->
-<!--                @delete-bucket="switcherDeletingBucket">-->
-<!--            </artifact-confirm-modal>-->
+            <tasks-confirm-modal
+                v-if="showConfirm"
+                @close-confirm="openConfirm"
+                :loading-delete="loadingDelete"
+                @delete-task="deleteTask">
+            </tasks-confirm-modal>
+            <tasks-run-task-modal>
+            
+            </tasks-run-task-modal>
         </main>
     `
 };
