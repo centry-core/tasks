@@ -6,7 +6,7 @@ from pydantic import BaseModel, validator
 from pylon.core.tools import log
 
 
-class TaskCreateModelPD(BaseModel):
+class TaskPutModelPD(BaseModel):
     task_name: str
     task_package: str
     runtime: str
@@ -17,6 +17,8 @@ class TaskCreateModelPD(BaseModel):
     timeout: int
     task_parameters: List[dict]
 
+
+class TaskCreateModelPD(TaskPutModelPD):
     @validator('task_name')
     def validate_task_exists(cls, value: str, values: dict):
         assert not Task.query.filter_by(task_name=value).first(), f'Task with name {value} already exists'

@@ -11,7 +11,7 @@ from pydantic import ValidationError
 # from ...shared.utils.api_utils import build_req_parser, get
 
 from ...models.tasks import Task
-from ...models.validation_pd import TaskCreateModelPD
+from ...models.validation_pd import TaskCreateModelPD, TaskPutModelPD
 from hurry.filesize import size
 from tools import api_tools, data_tools, MinioClient
 from ...tools import task_tools
@@ -101,24 +101,35 @@ class API(Resource):
         return {"task_id": task.id, "message": f"Task {task_payload['funcname']} created"}, 201
 
     def put(self, project_id: int, task_id: str):
+        file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
+        if file is not None:
+            data['task_package'] = file.filename
 
         if data is None:
             return {"message": "Empty data object"}, 400
 
         try:
-            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
+            pd_obj = TaskPutModelPD(project_id=project_id, **data)
         except ValidationError as e:
             return e.errors(), 400
-
         project, task = self._get_task(project_id, task_id)
         if not task:
             return {"message": "No such task in selected in project"}, 404
 
-        task.task_handler = pd_obj.dict().get("invoke_func")
-        task.region = pd_obj.dict().get("region")
+        api_tools.upload_file(bucket="tasks", f=file, project=project)
+        task.task_name = pd_obj.dict().get("task_name")
+        task.zippath = f"tasks/{file.filename}"
+        task.task_package = pd_obj.dict().get("task_package")
+        task.task_handler = pd_obj.dict().get("task_handler")
+        task.region = pd_obj.dict().get("engine_location")
         task.runtime = pd_obj.dict().get("runtime")
-        task.env_vars = pd_obj.dict().get("env_vars")
+        task.env_vars = json.dumps({
+                "cpu_cores": pd_obj.dict().pop('cpu_cores'),
+                "memory": pd_obj.dict().pop('memory'),
+                "timeout": pd_obj.dict().pop('timeout'),
+                "task_parameters": pd_obj.dict().pop('task_parameters')
+            })
         task.commit()
         return task.to_json(), 200
 
