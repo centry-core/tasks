@@ -158,7 +158,7 @@ const Tasks = {
                 @delete-task="deleteTask">
             </tasks-confirm-modal>
             <tasks-run-task-modal>
-            
+                <slot name='test_parameters'></slot>
             </tasks-run-task-modal>
         </main>
     `

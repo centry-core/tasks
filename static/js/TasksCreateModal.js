@@ -200,7 +200,7 @@ const TasksCreateModal = {
                                 v-bind="locations"
                                 >
                             </Locations>
-                            <slot> </slot>
+                            <slot></slot>
                         </div>
                     </div>
                 </div>
