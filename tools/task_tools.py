@@ -68,6 +68,9 @@ def create_task_result(project_id: int,  data: dict):
         task_id=data.get('task_id'),
         ts=data.get('ts'),
         results=data.get('results'),
-        log=data.get('log'))
+        log=data.get('log'),
+        task_duration=data.get('task_duration'),
+        task_status=data.get('task_status')
+    )
     task_result.insert()
     return task_result

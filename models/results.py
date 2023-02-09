@@ -12,7 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-from sqlalchemy import String, Column, Integer, Text
+from sqlalchemy import String, Column, Integer, Text, Boolean, Float
 
 from tools import db, db_tools
 
@@ -26,3 +26,5 @@ class TaskResults(db_tools.AbstractBaseMixin, db.Base):
     ts = Column(Integer, unique=False, nullable=False)
     results = Column(Text, unique=False, nullable=False)
     log = Column(Text, unique=False, nullable=False)
+    task_duration = Column(Float, unique=False, nullable=True)
+    task_status = Column(Boolean, unique=False, nullable=False, default=False)

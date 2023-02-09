@@ -1,5 +1,4 @@
 import json
-import logging
 
 from flask import request
 from flask_restful import Resource
@@ -21,6 +20,7 @@ from ...tools import task_tools
 class API(Resource):
     url_params = [
         '<int:project_id>',
+        '<int:project_id>/<string:task_id>',
     ]
 
     def __init__(self, module):
@@ -28,29 +28,38 @@ class API(Resource):
 
     def _get_task(self, project_id: int, task_id: str):
         return self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id), \
-               Task.query.filter_by(task_id=task_id).first()
+            Task.query.filter_by(task_id=task_id, project_id=project_id).first()
 
-    def get(self, project_id: int):
+    def get(self, project_id: int, task_id: str = None):
         args = request.args
-        get_size = args.get('get_size')
-        total, tasks = api_tools.get(project_id, args, Task)
+        get_params = args.get('get_parameters', 'false')
 
-        if get_size and get_size.lower() == 'true':
-            project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
-            c = MinioClient(project)
-            files = c.list_files('tasks')
-            for each in files:
+        if get_params.lower() == 'true' and task_id:
+            _, task = self._get_task(project_id, task_id)
+            if not task:
+                return {"message": "No such task in selected in project"}, 404
+
+            resp = [{
+                "task_id": task.task_id,
+                "task_name": task.task_name,
+                "task_parameters": json.loads(task.env_vars).get('task_parameters'),
+            }]
+            return {"total": len(resp), "rows": resp}, 200
+
+        project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+        c = MinioClient(project)
+        files = c.list_files('tasks')
+        total, tasks = api_tools.get(project_id, args, Task)
+        for each in files:
+            for task in tasks:
                 name = each["name"]
-                task_name = [x.task_name for x in tasks if str(x.zippath).split("/")[-1] == name]
-                task_name = task_name[0] if task_name else ""
-                each["task_name"] = task_name
-                each["size"] = size(each["size"])
-            return {"total": len(files), "rows": files}, 200
-        else:
-            reports = []
-            for each in tasks:
-                reports.append(each.to_json())
-            return {"total": total, "rows": reports}, 200
+                if str(task.zippath).split("/")[-1] == name:
+                    each['task_id'] = task.task_id
+                    each["task_name"] = task.task_name
+                    each['webhook'] = task.webhook
+                    each["size"] = size(each["size"])
+
+        return {"total": len(files), "rows": files}, 200
 
     def post(self, project_id: int):
         file = request.files.get('file')
@@ -62,7 +71,7 @@ class API(Resource):
             data['task_package'] = file.filename
 
         try:
-            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
+            pd_obj = TaskCreateModelPD(**data)
         except ValidationError as e:
             return e.errors(), 400
 
@@ -103,6 +112,9 @@ class API(Resource):
             return e.errors(), 400
 
         project, task = self._get_task(project_id, task_id)
+        if not task:
+            return {"message": "No such task in selected in project"}, 404
+
         task.task_handler = pd_obj.dict().get("invoke_func")
         task.region = pd_obj.dict().get("region")
         task.runtime = pd_obj.dict().get("runtime")
@@ -112,5 +124,8 @@ class API(Resource):
 
     def delete(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)
+        if not task:
+            return {"message": "No such task in selected in project"}, 404
+
         task.delete()
         return None, 204
