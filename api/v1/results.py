@@ -13,23 +13,23 @@ from ...tools.task_tools import create_task_result
 class API(Resource):
     url_params = [
         '<int:project_id>',
+        '<int:project_id>/<string:task_id>',
     ]
 
     def __init__(self, module):
         self.module = module
 
-    def get(self, project_id: int):
+    def get(self, project_id: int, task_id: str):
         args = request.args
         rows = defaultdict(list)
 
-        total, res = api_tools.get(project_id, args, TaskResults)
-        for row in res:
-            task = Task.query.filter_by(project_id=project_id, task_id=row.task_id).first()
-            # logging.info(f'task id :{row.task_id}')
+        task_result = TaskResults.query.filter_by(project_id=project_id, task_id=task_id).all()
+        for row in task_result:
+            task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
             data = row.to_json()
             data["ts"] = api_tools.format_date(datetime.fromtimestamp(row.ts))
             rows[task.task_name].append(data)
-        return make_response({"total": total, "rows": rows}, 200)
+        return make_response({"total": len(task_result), "rows": rows}, 200)
 
     def post(self, project_id: int):
         data = request.json
