@@ -48,7 +48,7 @@ class API(Resource):
                 }]
                 return {"total": len(resp), "rows": resp}, 200
             else:
-                resp = task.to_json()
+                resp = [task.to_json()]
                 return {"total": len(resp), "rows": resp}, 200
 
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
