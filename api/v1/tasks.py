@@ -34,17 +34,22 @@ class API(Resource):
         args = request.args
         get_params = args.get('get_parameters', 'false')
 
-        if get_params.lower() == 'true' and task_id:
+        if task_id:
             _, task = self._get_task(project_id, task_id)
+
             if not task:
                 return {"message": "No such task in selected in project"}, 404
 
-            resp = [{
-                "task_id": task.task_id,
-                "task_name": task.task_name,
-                "task_parameters": json.loads(task.env_vars).get('task_parameters'),
-            }]
-            return {"total": len(resp), "rows": resp}, 200
+            if get_params.lower() == 'true':
+                resp = [{
+                    "task_id": task.task_id,
+                    "task_name": task.task_name,
+                    "task_parameters": json.loads(task.env_vars).get('task_parameters'),
+                }]
+                return {"total": len(resp), "rows": resp}, 200
+            else:
+                resp = [task.to_json()]
+                return {"total": len(resp), "rows": resp}, 200
 
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         c = MinioClient(project)
@@ -125,13 +130,16 @@ class API(Resource):
         task.region = pd_obj.dict().get("engine_location")
         task.runtime = pd_obj.dict().get("runtime")
         task.env_vars = json.dumps({
-                "cpu_cores": pd_obj.dict().pop('cpu_cores'),
-                "memory": pd_obj.dict().pop('memory'),
-                "timeout": pd_obj.dict().pop('timeout'),
-                "task_parameters": pd_obj.dict().pop('task_parameters')
-            })
+            "cpu_cores": pd_obj.dict().pop('cpu_cores'),
+            "memory": pd_obj.dict().pop('memory'),
+            "timeout": pd_obj.dict().pop('timeout'),
+            "task_parameters": pd_obj.dict().pop('task_parameters')
+        })
         task.commit()
-        return task.to_json(), 200
+        resp = task.to_json()
+        c = MinioClient(project)
+        resp['size'] = size(c.get_file_size('tasks', filename=file.filename))
+        return resp, 200
 
     def delete(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)
