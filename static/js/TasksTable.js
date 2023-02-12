@@ -1,11 +1,37 @@
 const TasksTable = {
-    props: ['selected-task', 'task-info'],
+    props: ['selected-task', 'task-info', 'session'],
     data() {
         return {
             webhook: '/task/eb6827fa-192b-4acf-b8c7-8780e3ea8613',
         }
     },
+    watch: {
+        selectedTask(newValue) {
+            this.fetchTasksResult(newValue.task_id).then(data => {
+                console.log(data)
+            });
+            this.fetchTasksInfo(newValue.task_id).then(data => {
+                console.log(data)
+            });
+        }
+    },
     methods: {
+        async fetchTasksResult(taskId) {
+            // TODO rewrite session
+            // const res = await fetch (`/api/v1/tasks/results/${this.session}/${taskId}`,{
+            // const res = await fetch (`/api/v1/tasks/results/${this.session}/e8f12472-5d4e-441f-9727-0eabb01f827c`,{
+            const res = await fetch (`/api/v1/tasks/results/${this.session}/e8f12472-5d4e-441f-9727-0eabb01f827c`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
+        async fetchTasksInfo(taskId) {
+            // TODO rewrite session
+            const res = await fetch (`/api/v1/tasks/tasks/${this.session}/${taskId}`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
         copyWebhook() {
             const copiedText = document.querySelector('.web-hook-copy');
             const textInput = document.createElement("input");

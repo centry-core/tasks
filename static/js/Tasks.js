@@ -37,18 +37,6 @@ const Tasks = {
                 this.selectFirstTask();
             }
             return data
-        }).then(data => {
-            this.fetchTasksInfo().then(taskInfo => {
-                console.log(taskInfo)
-                vm.taskInfoFetched = taskInfo;
-            })
-            return data
-        }).then((taskRows) => {
-            if (taskRows.rows.length > 0) {
-                 vm.fetchTaskResults().then(resultRows => {
-                     console.log(resultRows)
-                })
-            }
         })
     },
     methods: {
@@ -70,16 +58,9 @@ const Tasks = {
                 $(this).addClass('highlight').siblings().removeClass('highlight');
             });
         },
-        async fetchTasksInfo() {
-            // TODO rewrite session
-            const res = await fetch (`/api/v1/tasks/tasks/${this.session}?get_size=false`,{
-                method: 'GET',
-            })
-            return res.json();
-        },
         async fetchTasks() {
             // TODO rewrite session
-            const res = await fetch (`/api/v1/tasks/tasks/${this.session}?get_size=true`,{
+            const res = await fetch (`/api/v1/tasks/tasks/${this.session}`,{
                 method: 'GET',
             })
             return res.json();
@@ -141,6 +122,7 @@ const Tasks = {
             </tasks-list-aside>
             <tasks-table
                 :selected-task="selectedTask"
+                :session="session"
                 :task-info="taskInfo"
                 @refresh="refresh">
             </tasks-table>
