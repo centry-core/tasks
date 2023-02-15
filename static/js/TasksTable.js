@@ -1,36 +1,84 @@
+window.tasksBarChart = null;
+
 const TasksTable = {
     props: ['selected-task', 'task-info', 'session'],
     data() {
         return {
-            webhook: '/task/eb6827fa-192b-4acf-b8c7-8780e3ea8613',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: false,
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            display: false
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            },
+            isLoading: true,
         }
     },
     watch: {
         selectedTask(newValue) {
-            this.fetchTasksResult(newValue.task_id).then(data => {
-                console.log(data)
-            });
-            this.fetchTasksInfo(newValue.task_id).then(data => {
-                console.log(data)
-            });
+            this.isLoading = true;
+            this.fetchTasksResult(newValue.task_id)
+                .then(data => {
+                    const taskData = Object.values(data.rows);
+                    const labels = [];
+                    const datasets = [];
+                    taskData.flat().forEach(result => {
+                        labels.push(result.ts);
+                        datasets.push(result.task_duration)
+                    })
+                    if (window.tasksBarChart) {
+                        this.updateChartRun(datasets, labels);
+                    } else {
+                        this.createChartRun(datasets, labels);
+                    }
+                })
+                .finally(() => {
+                    this.isLoading = false;
+                });
         }
     },
     methods: {
         async fetchTasksResult(taskId) {
             // TODO rewrite session
-            // const res = await fetch (`/api/v1/tasks/results/${this.session}/${taskId}`,{
-            // const res = await fetch (`/api/v1/tasks/results/${this.session}/e8f12472-5d4e-441f-9727-0eabb01f827c`,{
-            const res = await fetch (`/api/v1/tasks/results/${this.session}/e8f12472-5d4e-441f-9727-0eabb01f827c`,{
+            const res = await fetch (`/api/v1/tasks/results/${this.session}/${taskId}`,{
                 method: 'GET',
             })
             return res.json();
         },
-        async fetchTasksInfo(taskId) {
-            // TODO rewrite session
-            const res = await fetch (`/api/v1/tasks/tasks/${this.session}/${taskId}`,{
-                method: 'GET',
-            })
-            return res.json();
+        createChartRun(datasets, labels) {
+            const ctx = document.getElementById('chartRun');
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: datasets,
+                        borderWidth: 1,
+                        borderColor: ['#5933c6'],
+                        backgroundColor: ['#5933c6']
+                    }]
+                },
+                options: this.options,
+            });
+            window.tasksBarChart = chart
+        },
+        updateChartRun(datasets, labels) {
+            window.tasksBarChart.data.labels = labels;
+            window.tasksBarChart.data.datasets[0].data = datasets;
+            window.tasksBarChart.update();
         },
         copyWebhook() {
             const copiedText = document.querySelector('.web-hook-copy');
@@ -62,15 +110,29 @@ const TasksTable = {
                 <tr>
                     <td class="font-h6 text-gray-500 font-semibold font-uppercase pr-3">webhook</td>
                     <td class="font-h5 d-flex align-items-center">
-                        <span class="web-hook-copy">{{ webhook }}</span>
+                        <span class="web-hook-copy">{{ selectedTask.webhook }}</span>
                         <i class="icon__18x18 icon-multichoice ml-3" @click="copyWebhook"></i>
                     </td>
                 </tr>
                 <tr>
                     <td class="text-gray-500 font-h6 font-semibold font-uppercase pr-3">task id</td>
-                    <td class="font-h5">46276428</td>
+                    <td class="font-h5">{{ selectedTask.task_id }}</td>
                 </tr>
             </table>
+            
+            <div class="d-grid grid-column-2 gap-3 mt-3">
+                <div>
+                    <p class="text-gray-500 font-h6 font-semibold font-uppercase mb-2">runs</p>
+                    <div class="position-relative" style="height: 250px">
+                        <div class="layout-spinner" v-if="isLoading">
+                            <div class="spinner-centered">
+                                <i class="spinner-loader__32x32"></i>
+                            </div>
+                        </div>
+                        <canvas id="chartRun"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
     `
 }
