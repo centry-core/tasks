@@ -71,10 +71,10 @@ class API(Resource):
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
         if data is None:
             return {"message": "Empty data object"}, 400
+        data['project_id'] = project_id
 
         if file is not None:
             data['task_package'] = file.filename
-
         try:
             pd_obj = TaskCreateModelPD(**data)
         except ValidationError as e:
@@ -127,14 +127,6 @@ class API(Resource):
         task.zippath = f"tasks/{file.filename}"
         task.task_package = pd_obj.dict().get("task_package")
         task.task_handler = pd_obj.dict().get("task_handler")
-        task.region = pd_obj.dict().get("engine_location")
-        task.runtime = pd_obj.dict().get("runtime")
-        task.env_vars = json.dumps({
-            "cpu_cores": pd_obj.dict().pop('cpu_cores'),
-            "memory": pd_obj.dict().pop('memory'),
-            "timeout": pd_obj.dict().pop('timeout'),
-            "task_parameters": pd_obj.dict().pop('task_parameters')
-        })
         task.commit()
         resp = task.to_json()
         c = MinioClient(project)
@@ -146,5 +138,7 @@ class API(Resource):
         if not task:
             return {"message": "No such task in selected in project"}, 404
 
+        c = MinioClient(project=project)
+        c.remove_file('tasks', str(task.zippath).split("/")[-1])
         task.delete()
         return None, 204

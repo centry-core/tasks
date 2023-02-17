@@ -28,3 +28,4 @@ class TaskResults(db_tools.AbstractBaseMixin, db.Base):
     log = Column(Text, unique=False, nullable=False)
     task_duration = Column(Float, unique=False, nullable=True)
     task_status = Column(Boolean, unique=False, nullable=False, default=False)
+    task_result_id = Column(String(128), unique=True)
