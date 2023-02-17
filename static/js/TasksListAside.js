@@ -1,5 +1,5 @@
 const TasksListAside = {
-    props: ['isInitDataFetched', 'selectedTask', 'selectedTaskRowIndex', 'checkedBucketsList', 'bucketCount'],
+    props: ['isInitDataFetched', 'selectedTask', 'checkedBucketsList', 'bucketCount'],
     data() {
         return {
             loadingDelete: false,
@@ -7,7 +7,7 @@ const TasksListAside = {
     },
     computed: {
         responsiveTableHeight() {
-            return `${(window.innerHeight - 270)}px`;
+            return `${(window.innerHeight - 286)}px`;
         }
     },
     watch: {
@@ -20,7 +20,7 @@ const TasksListAside = {
             const vm = this;
             $('#task-aside-table').on('sort.bs.table', function (name, order) {
                 vm.$nextTick(() => {
-                    $('#task-aside-table').find(`[data-uniqueid='${vm.selectedTask.task_name}']`).addClass('highlight');
+                    $('#task-aside-table').find(`[data-uniqueid='${vm.selectedTask.task_id}']`).addClass('highlight');
                 })
             });
         },
@@ -46,12 +46,12 @@ const TasksListAside = {
                 <table class="table table-borderless table-fix-thead"
                     id="task-aside-table"
                     data-toggle="table"
-                    data-unique-id="task_name">
+                    data-unique-id="task_id">
                     <thead class="thead-light bg-transparent">
                         <tr>
                             <th data-visible="false" data-field="task_id">index</th>
                             <th data-checkbox="true" data-visible="false" data-field="select"></th>
-                            <th data-sortable="true" data-field="name" class="bucket-name">NAME</th>
+                            <th data-sortable="true" data-field="task_name" class="bucket-name">NAME</th>
                             <th data-sortable="true" data-cell-style="nameStyle" data-field="size" class="bucket-size">SIZE</th>
                             <th data-cell-style="nameStyle" 
                                 data-formatter='<div class="d-none">

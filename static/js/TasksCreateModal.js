@@ -1,7 +1,7 @@
 const TasksCreateModal = {
-    delimiters: ['[[', ']]'],
     components: {
         'input-stepper': InputStepper,
+        'tasks-location': TasksLocation,
     },
     props: ['locations', 'runtimes'],
     data() {
@@ -16,12 +16,12 @@ const TasksCreateModal = {
             const form = document.getElementById('form');
             Object.assign(vm.$data, vm.initial_state());
             form.classList.remove('was-validated');
+            vm.test_parameters.clear();
         });
     },
     computed: {
          test_parameters() {
-            // return ParamsTable.Manager("CreateTaskModal_test_params")
-            return ''
+            return ParamsTable.Manager("createTaskModal_test_params");
         },
         isValidDA() {
              return this.isSubmitted && !this.previewFile;
@@ -36,27 +36,25 @@ const TasksCreateModal = {
                 location: 'default',
                 cpu_quota: 1,
                 memory_quota: 4,
+                timeout_quota: 500,
                 cloud_settings: {},
-                timeout: 5,
                 isLoading: false,
                 previewFile: null,
                 file: null,
                 error: {},
                 isSubmitted: false,
-                parallel_runners: 1,
             }
         },
         get_data() {
             return {
                  "task_name": this.task_name,
-                 "parallel_runners": this.parallel_runners,
                  "task_package": this.previewFile,
                  "runtime": this.runtime,
                  "task_handler": this.task_handler,
                  "engine_location": this.location,
                  "cpu_cores": this.cpu_quota,
                  "memory": this.memory_quota,
-                 "timeout": this.timeout,
+                 "timeout": this.timeout_quota,
                  "task_parameters": this.test_parameters.get()
             }
         },
@@ -89,7 +87,7 @@ const TasksCreateModal = {
                 form.classList.add('was-validated');
             }
             this.isSubmitted = true;
-            if (form.checkValidity() === true) {
+            if (form.checkValidity() === true && this.previewFile) {
                 this.isLoading = true;
                 let data = new FormData();
                 data.append('data', JSON.stringify(this.get_data()));
@@ -156,7 +154,7 @@ const TasksCreateModal = {
                                           <label for="dropInput" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
                                     </div>
                                     <span v-show="previewFile" class="preview-area_item"> 
-                                        [[previewFile]]
+                                        {{ previewFile }}}
                                         <i class="icon__16x16 icon-close__16" @click="removeFile"></i>
                                     </span>
                                 </div>
@@ -164,22 +162,20 @@ const TasksCreateModal = {
                                     <p class="font-h5 font-bold">Runtime</p>
                                     <p class="font-h6 font-weight-400">Choose the language to use to write your function</p>
                                     <div class=" w-100-imp">
-                                        <select class="selectpicker bootstrap-select__need-validation mb-3 mt-2" 
-                                            id="CreateTaskFields"
+                                        <select class="selectpicker bootstrap-select__need-validation mb-3 mt-2"
                                             data-style="btn"
                                             required
                                             v-model="runtime"
                                             >
                                             <option v-for="runtime in runtimes">
-                                                [[runtime]]
+                                                {{ runtime }}
                                             </option>
                                         </select>
                                     </div>
                                     <p class="font-h5 font-bold">Task Handler</p>
                                     <p class="font-h6 font-weight-400">Function used to invoke a task</p>
                                     <div class="custom-input mb-3 mt-2">
-                                        <input 
-                                            id="CreateTaskFields"
+                                        <input
                                             type="text"
                                             required
                                             v-model="task_handler" 
@@ -188,15 +184,14 @@ const TasksCreateModal = {
                                     </div>
                                 </div>
                             </form>
-                            <Locations 
+                            <tasks-location
                                 v-model:location="location"
                                 v-model:cpu="cpu_quota"
                                 v-model:memory="memory_quota"
-                                v-model:parallel_runners="parallel_runners"
-                                v-model:cloud_settings="cloud_settings"
+                                v-model:timeout="timeout_quota"
                                 v-bind="locations"
                                 >
-                            </Locations>
+                            </tasks-location>
                             <slot></slot>
                         </div>
                     </div>

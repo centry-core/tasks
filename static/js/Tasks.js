@@ -1,4 +1,5 @@
 const Tasks = {
+    delimiters: ['[[', ']]'],
     props: ['session', 'locations', 'runtimes'],
     components: {
         'create-task-modal': TasksCreateModal,
@@ -13,7 +14,6 @@ const Tasks = {
             selectedTask: {
                 task_name: null,
             },
-            selectedTaskRowIndex: null,
             loadingDelete: false,
             isInitDataFetched: false,
             showConfirm: false,
@@ -44,7 +44,7 @@ const Tasks = {
             const vm = this;
             $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function(event) {
                 const selectedUniqId = this.getAttribute('data-uniqueid');
-                vm.selectedTask = taskList.find(row => row.task_name === selectedUniqId);
+                vm.selectedTask = taskList.find(row => row.task_id === selectedUniqId);
                 $(this).addClass('highlight').siblings().removeClass('highlight');
             });
         },
@@ -55,29 +55,15 @@ const Tasks = {
             return res.json();
         },
         async deleteTaskApi() {
-            console.log(this.selectedTask)
             const res = await fetch (`/api/v1/tasks/tasks/${this.session}/${this.selectedTask.task_id}`,{
                 method: 'DELETE',
             })
-            console.log(res)
         },
         selectFirstTask() {
-            const vm = this;
             $('#task-aside-table tbody tr').each(function(i, item) {
                 if(i === 0) {
                     const firstRow = $(item);
                     firstRow.addClass('highlight');
-                    vm.selectedTaskRowIndex = 0;
-                }
-            })
-        },
-        selectTaskById(taskId) {
-            const vm = this;
-            $('#task-aside-table tbody tr').each(function(i, item) {
-                if(i === 0) {
-                    const firstRow = $(item);
-                    firstRow.addClass('highlight');
-                    vm.selectedTaskRowIndex = 0;
                 }
             })
         },
@@ -87,10 +73,16 @@ const Tasks = {
                 this.setBucketEvent(data.rows);
                 this.tasksCount = data.rows.length;
                 this.isInitDataFetched = true;
-                if (data.rows.length > 0) {
-                    this.selectedTask = data.rows[0];
-                    this.selectFirstTask();
-                    // this.selectTaskById(taskId)
+                if (taskId) {
+                    this.selectedTask = data.rows.find(row => row.task_id === taskId);
+                    $('#task-aside-table')
+                        .find(`[data-uniqueid='${taskId}']`)
+                        .addClass('highlight');
+                } else {
+                    if (data.rows.length > 0) {
+                        this.selectFirstTask();
+                        this.selectedTask = data.rows[0];
+                    }
                 }
             })
         },
@@ -117,8 +109,7 @@ const Tasks = {
                 @update-bucket-list="updateBucketList"
                 :checked-buckets-list="checkedBucketsList"
                 :bucket-count="tasksCount"
-                :selected-="selectedTask"
-                :selected-task-row-index="selectedTaskRowIndex"
+                :selected-task="selectedTask"
                 :is-init-data-fetched="isInitDataFetched">
             </tasks-list-aside>
             <tasks-table
@@ -131,7 +122,7 @@ const Tasks = {
                 :runtimes="runtimes"
                 @update-tasks-list="updateTasksList"
                 >
-                <slot name='test_parameters'></slot>
+                <slot name='test_parameters_create'></slot>
             </create-task-modal>
             <tasks-update-modal
                 :locations="locations"
@@ -139,7 +130,7 @@ const Tasks = {
                 :selected-task="selectedTask"
                 @update-tasks-list="updateTasksList"
                 >
-                <slot name='test_parameters'></slot>
+                <slot name='test_parameters_update'></slot>
             </tasks-update-modal>
             <tasks-confirm-modal
                 v-if="showConfirm"
@@ -147,8 +138,9 @@ const Tasks = {
                 :loading-delete="loadingDelete"
                 @delete-task="deleteTask">
             </tasks-confirm-modal>
-            <tasks-run-task-modal>
-                <slot name='test_parameters' id="werwerewrewr"></slot>
+            <tasks-run-task-modal
+                :selected-task="selectedTask">
+                <slot name='test_parameters_run'></slot>
             </tasks-run-task-modal>
         </main>
     `

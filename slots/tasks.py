@@ -9,7 +9,7 @@ class Slot:  # pylint: disable=E1101,R0903
         from pylon.core.tools import log
         project_id = context.rpc_manager.call.project_get_id()
         public_regions = context.rpc_manager.call.get_rabbit_queues("carrier")
-        public_regions.remove("__internal")
+#         public_regions.remove("__internal")
         project_regions = context.rpc_manager.call.get_rabbit_queues(f"project_{project_id}_vhost")
         cloud_regions = context.rpc_manager.timeout(5).integrations_get_cloud_integrations(
                 project_id)

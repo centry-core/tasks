@@ -103,7 +103,7 @@ class API(Resource):
             args=task_payload
 
         )
-        return {"task_id": task.id, "message": f"Task {task_payload['funcname']} created"}, 201
+        return {"task_id": task.task_id, "message": f"Task {task_payload['funcname']} created"}, 201
 
     def put(self, project_id: int, task_id: str):
         file = request.files.get('file')

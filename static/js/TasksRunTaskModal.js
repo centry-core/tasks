@@ -1,21 +1,29 @@
 const TasksRunTaskModal = {
+    props: ['selectedTask'],
     data() {
         return {
             isLoading: false,
-            testParams: [],
         }
     },
     mounted() {
         const vm = this;
         $("#RunTaskModal").on("show.bs.modal", function (e) {
             vm.fetchParameters().then((data) => {
-                console.log(data)
+                const taskParams = data.rows[0].task_parameters;
+                if (taskParams) {
+                    vm.test_parameters.set(taskParams);
+                }
             })
         });
     },
+    computed: {
+        test_parameters() {
+            return ParamsTable.Manager("runTaskModal_test_params")
+        },
+    },
     methods: {
         async fetchParameters() {
-            const res = await fetch (`/api/v1/tasks/tasks/${this.session}?get_parameters=true`,{
+            const res = await fetch (`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}?get_parameters=true`,{
                 method: 'GET',
             })
             return res.json();

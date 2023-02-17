@@ -1,13 +1,10 @@
 const TasksUpdateModal = {
-    delimiters: ['[[', ']]'],
     components: {
         'input-stepper': InputStepper,
     },
-    props: ['locations', 'runtimes', 'selected-task'],
+    props: ['runtimes', 'selected-task'],
     data() {
         return this.initial_state()
-    },
-    watch: {
     },
     mounted() {
         const vm = this;
@@ -16,11 +13,14 @@ const TasksUpdateModal = {
                 vm.setTaskData(data.rows[0])
             })
         });
+        $('#selectUpdatedRuntime').on('change', (e) => {
+            this.runtime = e.target.value;
+        })
         $('#task_modal_parallel').closest('div.custom-input').hide();
     },
     computed: {
         test_parameters() {
-            return ParamsTable.Manager("CreateTaskModal_test_params")
+            return ParamsTable.Manager("updateTaskModal_test_params")
         },
         isValidDA() {
             return this.isSubmitted && !this.previewFile;
@@ -28,31 +28,17 @@ const TasksUpdateModal = {
     },
     methods: {
         setTaskData(taskData) {
-            $('#selectUpdatedRuntime').val(taskData.runtime);
-            $('#selectUpdatedRuntime').selectpicker('refresh');
+            this.$nextTick(() => {
+                $('#selectUpdatedRuntime').val(taskData.runtime);
+                $('#selectUpdatedRuntime').selectpicker('refresh');
+            })
             this.task_name = taskData.task_name;
             this.task_handler = taskData.task_handler;
             this.previewFile = taskData.zippath;
             const envVars = JSON.parse(taskData.env_vars);
-
-            this.cpu_quota = envVars.cpu_cores;
-            this.memory_quota = envVars.memory;
-            this.parallel_runners = envVars.timeout;
-            this.location = "default";
-            console.log(envVars.task_parameters)
-            // this.test_parameters.set()
-            // $("#UpdateTaskModal").bootstrapTable('append', envVars.task_parameters);
-            $("#CreateTaskModal_test_params").bootstrapTable('load', envVars.task_parameters);
-            const a = [
-                {name: 'a', default: '1', type: 'string', description: 'loo', action: ''},
-                {name: 'b', default: '2', type: 'string', description: 'naa', action: ''}
-            ]
-
-            $("#CreateTaskModal_test_params").table1.bootstrapTable('load', [
-                {name: 'a', default: '1', type: 'string', description: 'loo', action: ''},
-                {name: 'b', default: '2', type: 'string', description: 'naa', action: ''}
-            ]);
-
+            if (envVars.task_parameters) {
+                this.test_parameters.set(envVars.task_parameters);
+            }
         },
         async fetchTaskInfo() {
             const res = await fetch (`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
@@ -65,30 +51,18 @@ const TasksUpdateModal = {
                 task_name: null,
                 runtime: null,
                 task_handler: null,
-                location: 'default',
-                cpu_quota: 1,
-                memory_quota: 4,
-                cloud_settings: {},
-                timeout: 5,
                 isLoading: false,
                 previewFile: null,
                 file: null,
-                error: {},
                 isSubmitted: false,
-                parallel_runners: 1,
             }
         },
         get_data() {
             return {
                 "task_name": this.task_name,
-                "parallel_runners": this.parallel_runners,
+                "task_handler": this.task_handler,
                 "task_package": this.previewFile,
                 "runtime": this.runtime,
-                "task_handler": this.task_handler,
-                "engine_location": this.location,
-                "cpu_cores": this.cpu_quota,
-                "memory": this.memory_quota,
-                "timeout": this.timeout,
                 "task_parameters": this.test_parameters.get()
             }
         },
@@ -104,9 +78,9 @@ const TasksUpdateModal = {
             this.file = file
             return file
         },
-        async createTask(data){
-            const resp = await fetch(`/api/v1/tasks/tasks/${getSelectedProjectId()}`,{
-                method: 'POST',
+        async updateTaskAPI(data){
+            const resp = await fetch(`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
+                method: 'PUT',
                 body: data,
             })
             return resp.json()
@@ -116,26 +90,25 @@ const TasksUpdateModal = {
             this.file = null;
         },
         saveTask() {
-            const form = document.getElementById('form');
+            const form = document.getElementById('formUpdate');
             if (!this.isSubmitted) {
                 form.classList.add('was-validated');
             }
             this.isSubmitted = true;
-            if (form.checkValidity() === true) {
+            if (form.checkValidity() === true && this.previewFile) {
                 this.isLoading = true;
                 let data = new FormData();
                 data.append('data', JSON.stringify(this.get_data()));
-                this.createTask(data).then(response => {
+                this.updateTaskAPI(data).then(response => {
                     if (response[0]?.type === "assertion_error") {
                         throw new Error(response[0].msg)
                     }
                 }).then(() => {
                     data.append('file',this.file);
-                    this.createTask(data).then( response => {
-                        showNotify('SUCCESS', 'Task Created.');
+                    this.updateTaskAPI(data).then( response => {
+                        showNotify('SUCCESS', 'Task Updated.');
                         this.$emit('update-tasks-list', response.task_id);
                         $('#UpdateTaskModal').modal('hide');
-                        Object.assign(this.$data, this.initial_state());
                         form.classList.remove('was-validated');
                     })
                 }).catch(err => {
@@ -153,7 +126,7 @@ const TasksUpdateModal = {
                     <div class="modal-header">
                         <div class="row w-100">
                             <div class="col">
-                                <h2>Create task</h2>
+                                <h2>Update task</h2>
                             </div>
                             <div class="col-xs d-flex">
                                 <button type="button" class="btn  btn-secondary mr-2" data-dismiss="modal" aria-label="Close">
@@ -168,7 +141,7 @@ const TasksUpdateModal = {
                     </div>
                     <div class="modal-body">
                         <div class="section">
-                            <form class="needs-validation needs-validation__custom d-grid grid-column-2 gap-50" id="form" novalidate>
+                            <form class="needs-validation needs-validation__custom d-grid grid-column-2 gap-50" id="formUpdate" novalidate>
                                 <div class="form-group">
                                     <p class="font-h5 font-bold">Task Name</p>
                                     <p class="font-h6 font-weight-400">Enter name that describes the purpose of your function</p>
@@ -182,15 +155,15 @@ const TasksUpdateModal = {
                                 
                                     <p class="font-h5 font-bold">Task Package</p>
                                     <p class="font-h6 font-weight-400">Upload .zip or .jar file with the code and any dependencies.</p>
-                                    <div id="dragDropArea" 
+                                    <div id="dragDropAreaUpdate" 
                                         class="drop-area mb-3 mt-2" 
                                         :class="{'drop-area__invalid': isValidDA }"
                                         @dragover.prevent @drop.stop.prevent="onDrop">
-                                          <input type="file" id="dropInput" multiple accept="*" @change="uploadFile">
-                                          <label for="dropInput" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
+                                          <input type="file" id="dropInputUpdate" multiple accept="*" @change="uploadFile">
+                                          <label for="dropInputUpdate" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
                                     </div>
                                     <span v-show="previewFile" class="preview-area_item"> 
-                                        [[previewFile]]
+                                        {{ previewFile }}
                                         <i class="icon__16x16 icon-close__16" @click="removeFile"></i>
                                     </span>
                                 </div>
@@ -202,10 +175,9 @@ const TasksUpdateModal = {
                                             id="selectUpdatedRuntime"
                                             data-style="btn"
                                             required
-                                            v-model="runtime"
                                             >
                                             <option v-for="runtime in runtimes">
-                                                [[runtime]]
+                                                {{ runtime }}
                                             </option>
                                         </select>
                                     </div>
@@ -222,15 +194,6 @@ const TasksUpdateModal = {
                                     </div>
                                 </div>
                             </form>
-                            <Locations 
-                                v-model:location="location"
-                                v-model:cpu="cpu_quota"
-                                v-model:memory="memory_quota"
-                                v-model:parallel_runners="parallel_runners"
-                                v-model:cloud_settings="cloud_settings"
-                                v-bind="locations"
-                                >
-                            </Locations>
                             <slot></slot>
                         </div>
                     </div>

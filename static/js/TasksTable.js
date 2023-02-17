@@ -1,7 +1,7 @@
 window.tasksBarChart = null;
 
 const TasksTable = {
-    props: ['selected-task', 'task-info', 'session'],
+    props: ['selected-task', 'task-info'],
     data() {
         return {
             options: {
@@ -30,6 +30,7 @@ const TasksTable = {
     watch: {
         selectedTask(newValue) {
             this.isLoading = true;
+            console.log(newValue)
             this.fetchTasksResult(newValue.task_id)
                 .then(data => {
                     const taskData = Object.values(data.rows);
@@ -53,7 +54,7 @@ const TasksTable = {
     methods: {
         async fetchTasksResult(taskId) {
             // TODO rewrite session
-            const res = await fetch (`/api/v1/tasks/results/${this.session}/${taskId}`,{
+            const res = await fetch (`/api/v1/tasks/results/${getSelectedProjectId()}/${taskId}`,{
                 method: 'GET',
             })
             return res.json();
