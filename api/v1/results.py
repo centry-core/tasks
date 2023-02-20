@@ -27,7 +27,7 @@ class API(Resource):
         for row in task_result:
             task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
             data = row.to_json()
-            data["ts"] = api_tools.format_date(datetime.fromtimestamp(row.ts))
+            data["ts"] = api_tools.format_date(datetime.fromtimestamp(row.ts)) if row.ts else None
             rows[task.task_name].append(data)
         return make_response({"total": len(task_result), "rows": rows}, 200)
 

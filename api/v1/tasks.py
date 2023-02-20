@@ -127,6 +127,7 @@ class API(Resource):
         task.zippath = f"tasks/{file.filename}"
         task.task_package = pd_obj.dict().get("task_package")
         task.task_handler = pd_obj.dict().get("task_handler")
+        task.env_vars = json.dumps(pd_obj.dict().get("task_parameters"))
         task.commit()
         resp = task.to_json()
         c = MinioClient(project)
