@@ -4,6 +4,7 @@ const TasksTable = {
     props: ['selected-task', 'task-info'],
     data() {
         return {
+            websocket: undefined,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -30,7 +31,9 @@ const TasksTable = {
     watch: {
         selectedTask(newValue) {
             this.isLoading = true;
-            console.log(newValue)
+            // this.fetchLogs().then(data => {
+            //     this.init_websocket(data.websocket_url)
+            // })
             this.fetchTasksResult(newValue.task_id)
                 .then(data => {
                     const taskData = Object.values(data.rows);
@@ -58,6 +61,40 @@ const TasksTable = {
                 method: 'GET',
             })
             return res.json();
+        },
+        async fetchLogs() {
+            const res = await fetch (`/api/v1/tasks/loki_url/1/?task_id=${this.selectedTask.task_id}`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
+        init_websocket(websocketURL) {
+            this.websocket = new WebSocket(websocketURL)
+            this.websocket.onmessage = this.on_websocket_message
+            this.websocket.onopen = this.on_websocket_open
+            this.websocket.onclose = this.on_websocket_close
+            this.websocket.onerror = this.on_websocket_error
+        },
+        on_websocket_open(message) {
+            // console.log(message)
+        },
+        on_websocket_message(message) {
+            if (message.type !== 'message') {
+                console.warn('Unknown message from socket', message)
+                return
+            }
+            const data = JSON.parse(message.data)
+            data.streams.forEach(stream_item => {
+                stream_item.values.forEach(message_item => {
+                    this.logs.push(`${stream_item.stream.level} : ${message_item[1]}`)
+                })
+            })
+        },
+        on_websocket_close(message) {
+            // console.log(message)
+        },
+        on_websocket_error(message) {
+            // console.log(message)
         },
         createChartRun(datasets, labels) {
             const ctx = document.getElementById('chartRun');
