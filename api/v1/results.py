@@ -34,5 +34,23 @@ class API(Resource):
     def post(self, project_id: int):
         data = request.json
         task_result = create_task_result(project_id, data)
-        resp = {"message": "Accepted", "code": 200, "task_id": task_result.id}
-        return make_response(resp, resp.get('code', 200))
+        resp = {"message": "Created", "code": 201, "task_id": task_result.id}
+        return make_response(resp, resp.get('code', 201))
+
+    def put(self, project_id: int):
+        data = request.json
+        args = request.args
+        task_result_id = args.get('task_result_id')
+        task_result = TaskResults.query.filter_by(project_id=project_id, task_result_id=task_result_id).first()
+        if not task_result:
+            return {"message": "No such task_result_id in selected in project"}, 404
+
+        task_result.ts = data.get('ts')
+        task_result.task_duration = data.get('task_duration')
+        task_result.log = data.get('log')
+        task_result.results = data.get('results')
+        task_result.task_status = data.get('task_status')
+        task_result.commit()
+
+        resp = {"message": "Accepted", "code": 202, "task_result_id": task_result.task_result_id}
+        return make_response(resp, resp.get('code', 202))
