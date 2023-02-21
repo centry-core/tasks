@@ -32,6 +32,7 @@ const TasksUpdateModal = {
                 $('#selectUpdatedRuntime').val(taskData.runtime);
                 $('#selectUpdatedRuntime').selectpicker('refresh');
             })
+            this.runtime = taskData.runtime;
             this.task_name = taskData.task_name;
             this.task_handler = taskData.task_handler;
             this.previewFile = taskData.zippath;
@@ -52,7 +53,7 @@ const TasksUpdateModal = {
                 runtime: null,
                 task_handler: null,
                 isLoading: false,
-                previewFile: null,
+                previewFile: '',
                 file: null,
                 isSubmitted: false,
             }
@@ -61,8 +62,8 @@ const TasksUpdateModal = {
             return {
                 "task_name": this.task_name,
                 "task_handler": this.task_handler,
-                "task_package": this.previewFile,
                 "runtime": this.runtime,
+                "task_package": this.previewFile,
                 "task_parameters": this.test_parameters.get()
             }
         },
@@ -98,20 +99,17 @@ const TasksUpdateModal = {
             if (form.checkValidity() === true && this.previewFile) {
                 this.isLoading = true;
                 let data = new FormData();
-                data.append('data', JSON.stringify(this.get_data()));
-                this.updateTaskAPI(data).then(response => {
-                    if (response[0]?.type === "assertion_error") {
-                        throw new Error(response[0].msg)
-                    }
-                }).then(() => {
-                    data.append('file',this.file);
-                    this.updateTaskAPI(data).then( response => {
-                        showNotify('SUCCESS', 'Task Updated.');
-                        this.$emit('update-tasks-list', response.task_id);
-                        $('#UpdateTaskModal').modal('hide');
-                        form.classList.remove('was-validated');
-                    })
-                }).catch(err => {
+                if (this.file) data.append('file', this.file);
+                const prepareData = this.file ? this.get_data() : { ...this.get_data(), "task_package": ""}
+                data.append('data', JSON.stringify(prepareData));
+                this.updateTaskAPI(data).then( response => {
+                    showNotify('SUCCESS', 'Task Updated.');
+                    this.$emit('update-tasks-list', response.task_id);
+                    $('#UpdateTaskModal').modal('hide');
+                    form.classList.remove('was-validated');
+                    this.removeFile();
+                })
+                .catch(err => {
                     showNotify('ERROR', err);
                 }).finally(() => {
                     this.isLoading = false;
