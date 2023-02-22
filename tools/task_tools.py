@@ -1,3 +1,4 @@
+import logging
 from uuid import uuid4
 from werkzeug.utils import secure_filename
 from urllib.parse import urlunparse, urlparse
@@ -44,6 +45,7 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
 
 
 def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
+    logging.info(f'event {event}')
     if not queue_name:
         queue_name = c.RABBIT_QUEUE_NAME
     secrets = secrets_tools.get_project_hidden_secrets(project_id=project_id)
@@ -78,6 +80,7 @@ def create_task_result(project_id: int,  data: dict):
         task_duration=data.get('task_duration'),
         task_status=data.get('task_status'),
         task_result_id=data.get('task_result_id'),
+        task_stats=data.get('task_stats'),
     )
     task_result.insert()
     return task_result
