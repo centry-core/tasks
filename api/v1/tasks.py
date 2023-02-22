@@ -55,6 +55,7 @@ class API(Resource):
         c = MinioClient(project)
         files = c.list_files('tasks')
         total, tasks = api_tools.get(project_id, args, Task)
+        configured = []
         for each in files:
             for task in tasks:
                 name = each["name"]
@@ -63,7 +64,11 @@ class API(Resource):
                     each["task_name"] = task.task_name
                     each['webhook'] = task.webhook
                     each["size"] = size(each["size"])
+                    configured.append(name)
 
+        if not_configured := set([x['name'] for x in files]) - set(configured):
+            return {"total": len(files), "rows": f' These tasks exist in artifacts {not_configured} '
+                                                 f'but not configured in the database'}, 406
         return {"total": len(files), "rows": files}, 200
 
     def post(self, project_id: int):
@@ -108,8 +113,6 @@ class API(Resource):
     def put(self, project_id: int, task_id: str):
         file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
-        if file is not None:
-            data['task_package'] = file.filename
 
         if data is None:
             return {"message": "Empty data object"}, 400
@@ -122,15 +125,22 @@ class API(Resource):
         if not task:
             return {"message": "No such task in selected in project"}, 404
 
-        api_tools.upload_file(bucket="tasks", f=file, project=project)
         task.task_name = pd_obj.dict().get("task_name")
-        task.zippath = f"tasks/{file.filename}"
-        task.task_package = pd_obj.dict().get("task_package")
+
+        file_size = None
+        if file is not None:
+            data['task_package'] = file.filename
+            # task.zippath = f"tasks/{file.filename}"
+            api_tools.upload_file(bucket="tasks", f=file, project=project, create_if_not_exists=False)
+            c = MinioClient(project)
+            file_size = size(c.get_file_size('tasks', filename=file.filename))
+
         task.task_handler = pd_obj.dict().get("task_handler")
+        task.env_vars = json.dumps(pd_obj.dict().get("task_parameters"))
         task.commit()
         resp = task.to_json()
-        c = MinioClient(project)
-        resp['size'] = size(c.get_file_size('tasks', filename=file.filename))
+        resp['size'] = file_size
+
         return resp, 200
 
     def delete(self, project_id: int, task_id: str):
