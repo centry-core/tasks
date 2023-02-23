@@ -45,7 +45,8 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
 
 
 def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
-    logging.info(f'event {event}')
+    logging.info(f'event {event}\n')
+    logging.info(f'task {event}')
     if not queue_name:
         queue_name = c.RABBIT_QUEUE_NAME
     secrets = secrets_tools.get_project_hidden_secrets(project_id=project_id)
