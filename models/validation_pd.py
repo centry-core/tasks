@@ -11,12 +11,12 @@ class TaskPutModelPD(BaseModel):
     task_handler: str
     task_parameters: List[dict]
 
-    @validator('task_package')
-    def validate_task_package(cls, value: str, values: dict):
-        if value:
-            assert Task.query.filter_by(zippath=f'tasks/{value}').first(), f'There no such package file in database' \
-                                                                           f' {value} to perform an update.'
-        return value
+    # @validator('task_package')
+    # def validate_task_package(cls, value: str, values: dict):
+    #     if value:
+    #         assert Task.query.filter_by(zippath=f'tasks/{value}').first(), f'There no such package file in database' \
+    #                                                                        f' {value} to perform an update.'
+    #     return value
 
 
 class TaskCreateModelPD(BaseModel):

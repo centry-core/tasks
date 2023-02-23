@@ -55,7 +55,7 @@ class API(Resource):
         c = MinioClient(project)
         files = c.list_files('tasks')
         total, tasks = api_tools.get(project_id, args, Task)
-        configured = []
+        rows = []
         for each in files:
             for task in tasks:
                 name = each["name"]
@@ -64,12 +64,9 @@ class API(Resource):
                     each["task_name"] = task.task_name
                     each['webhook'] = task.webhook
                     each["size"] = size(each["size"])
-                    configured.append(name)
+                    rows.append(each)
 
-        if not_configured := set([x['name'] for x in files]) - set(configured):
-            return {"total": len(files), "rows": f' These tasks exist in artifacts {not_configured} '
-                                                 f'but not configured in the database'}, 406
-        return {"total": len(files), "rows": files}, 200
+        return {"total": len(rows), "rows": rows}, 200
 
     def post(self, project_id: int):
         file = request.files.get('file')
@@ -130,8 +127,8 @@ class API(Resource):
         file_size = None
         if file is not None:
             data['task_package'] = file.filename
-            # task.zippath = f"tasks/{file.filename}"
-            api_tools.upload_file(bucket="tasks", f=file, project=project, create_if_not_exists=False)
+            task.zippath = f"tasks/{file.filename}"
+            api_tools.upload_file(bucket="tasks", f=file, project=project)
             c = MinioClient(project)
             file_size = size(c.get_file_size('tasks', filename=file.filename))
 
