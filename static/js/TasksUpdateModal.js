@@ -1,61 +1,70 @@
-const TasksCreateModal = {
+const TasksUpdateModal = {
     components: {
         'input-stepper': InputStepper,
-        'tasks-location': TasksLocation,
     },
-    props: ['locations', 'runtimes'],
+    props: ['runtimes', 'selected-task'],
     data() {
         return this.initial_state()
     },
-    watch: {
-    },
     mounted() {
-        $('#task_modal_parallel').closest('div.custom-input').hide();
         const vm = this;
-        $("#CreateTaskModal").on("hide.bs.modal", function (e) {
-            const form = document.getElementById('form');
-            Object.assign(vm.$data, vm.initial_state());
-            form.classList.remove('was-validated');
-            vm.test_parameters.clear();
+        $("#UpdateTaskModal").on("show.bs.modal", function (e) {
+            vm.fetchTaskInfo().then((data) => {
+                vm.setTaskData(data.rows[0])
+            })
         });
+        $('#selectUpdatedRuntime').on('change', (e) => {
+            this.runtime = e.target.value;
+        })
+        $('#task_modal_parallel').closest('div.custom-input').hide();
     },
     computed: {
-         test_parameters() {
-            return ParamsTable.Manager("createTaskModal_test_params");
+        test_parameters() {
+            return ParamsTable.Manager("updateTaskModal_test_params")
         },
         isValidDA() {
-             return this.isSubmitted && !this.previewFile;
+            return this.isSubmitted && !this.previewFile;
         },
     },
     methods: {
+        setTaskData(taskData) {
+            this.$nextTick(() => {
+                $('#selectUpdatedRuntime').val(taskData.runtime);
+                $('#selectUpdatedRuntime').selectpicker('refresh');
+            })
+            this.runtime = taskData.runtime;
+            this.task_name = taskData.task_name;
+            this.task_handler = taskData.task_handler;
+            this.previewFile = taskData.zippath;
+            const envVars = JSON.parse(taskData.env_vars);
+            if (envVars.task_parameters) {
+                this.test_parameters.set(envVars.task_parameters);
+            }
+        },
+        async fetchTaskInfo() {
+            const res = await fetch (`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
         initial_state() {
             return {
                 task_name: null,
                 runtime: null,
                 task_handler: null,
-                location: 'default',
-                cpu_quota: 1,
-                memory_quota: 4,
-                timeout_quota: 500,
-                cloud_settings: {},
                 isLoading: false,
-                previewFile: null,
+                previewFile: '',
                 file: null,
-                error: {},
                 isSubmitted: false,
             }
         },
         get_data() {
             return {
-                 "task_name": this.task_name,
-                 "task_package": this.previewFile,
-                 "runtime": this.runtime,
-                 "task_handler": this.task_handler,
-                 "engine_location": this.location,
-                 "cpu_cores": this.cpu_quota,
-                 "memory": this.memory_quota,
-                 "timeout": this.timeout_quota,
-                 "task_parameters": this.test_parameters.get()
+                "task_name": this.task_name,
+                "task_handler": this.task_handler,
+                "runtime": this.runtime,
+                "task_package": this.previewFile,
+                "task_parameters": this.test_parameters.get()
             }
         },
         uploadFile(e) {
@@ -70,9 +79,9 @@ const TasksCreateModal = {
             this.file = file
             return file
         },
-        async createTask(data){
-            const resp = await fetch(`/api/v1/tasks/tasks/${getSelectedProjectId()}`,{
-                method: 'POST',
+        async updateTaskAPI(data){
+            const resp = await fetch(`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
+                method: 'PUT',
                 body: data,
             })
             return resp.json()
@@ -82,7 +91,7 @@ const TasksCreateModal = {
             this.file = null;
         },
         saveTask() {
-            const form = document.getElementById('form');
+            const form = document.getElementById('formUpdate');
             if (!this.isSubmitted) {
                 form.classList.add('was-validated');
             }
@@ -90,19 +99,17 @@ const TasksCreateModal = {
             if (form.checkValidity() === true && this.previewFile) {
                 this.isLoading = true;
                 let data = new FormData();
-                data.append('data', JSON.stringify(this.get_data()));
-                this.createTask(data).then(response => {
-                    if (response[0]?.type === "assertion_error") {
-                        throw new Error(response[0].msg)
-                    }
-                }).then(() => {
-                    data.append('file',this.file);
-                    this.createTask(data).then( response => {
-                        showNotify('SUCCESS', 'Task Created.');
-                        this.$emit('update-tasks-list', response.task_id);
-                        $('#CreateTaskModal').modal('hide');
-                    })
-                }).catch(err => {
+                if (this.file) data.append('file', this.file);
+                const prepareData = this.file ? this.get_data() : { ...this.get_data(), "task_package": ""}
+                data.append('data', JSON.stringify(prepareData));
+                this.updateTaskAPI(data).then( response => {
+                    showNotify('SUCCESS', 'Task Updated.');
+                    this.$emit('update-tasks-list', response.task_id);
+                    $('#UpdateTaskModal').modal('hide');
+                    form.classList.remove('was-validated');
+                    this.removeFile();
+                })
+                .catch(err => {
                     showNotify('ERROR', err);
                 }).finally(() => {
                     this.isLoading = false;
@@ -111,13 +118,13 @@ const TasksCreateModal = {
         },
     },
     template: `
-        <div class="modal modal-base fixed-left fade shadow-sm" tabindex="-1" role="dialog" id="CreateTaskModal" xmlns="http://www.w3.org/1999/html">
+        <div class="modal modal-base fixed-left fade shadow-sm" tabindex="-1" role="dialog" id="UpdateTaskModal" xmlns="http://www.w3.org/1999/html">
             <div class="modal-dialog modal-dialog-aside" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <div class="row w-100">
                             <div class="col">
-                                <h2>Create task</h2>
+                                <h2>Update task</h2>
                             </div>
                             <div class="col-xs d-flex">
                                 <button type="button" class="btn  btn-secondary mr-2" data-dismiss="modal" aria-label="Close">
@@ -132,7 +139,7 @@ const TasksCreateModal = {
                     </div>
                     <div class="modal-body">
                         <div class="section">
-                            <form class="needs-validation needs-validation__custom d-grid grid-column-2 gap-50" id="form" novalidate>
+                            <form class="needs-validation needs-validation__custom d-grid grid-column-2 gap-50" id="formUpdate" novalidate>
                                 <div class="form-group">
                                     <p class="font-h5 font-bold">Task Name</p>
                                     <p class="font-h6 font-weight-400">Enter name that describes the purpose of your function</p>
@@ -146,15 +153,15 @@ const TasksCreateModal = {
                                 
                                     <p class="font-h5 font-bold">Task Package</p>
                                     <p class="font-h6 font-weight-400">Upload .zip or .jar file with the code and any dependencies.</p>
-                                    <div id="dragDropArea" 
+                                    <div id="dragDropAreaUpdate" 
                                         class="drop-area mb-3 mt-2" 
                                         :class="{'drop-area__invalid': isValidDA }"
                                         @dragover.prevent @drop.stop.prevent="onDrop">
-                                          <input type="file" id="dropInput" multiple accept="*" @change="uploadFile">
-                                          <label for="dropInput" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
+                                          <input type="file" id="dropInputUpdate" multiple accept="*" @change="uploadFile">
+                                          <label for="dropInputUpdate" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
                                     </div>
                                     <span v-show="previewFile" class="preview-area_item"> 
-                                        {{ previewFile }}}
+                                        {{ previewFile }}
                                         <i class="icon__16x16 icon-close__16" @click="removeFile"></i>
                                     </span>
                                 </div>
@@ -162,10 +169,10 @@ const TasksCreateModal = {
                                     <p class="font-h5 font-bold">Runtime</p>
                                     <p class="font-h6 font-weight-400">Choose the language to use to write your function</p>
                                     <div class=" w-100-imp">
-                                        <select class="selectpicker bootstrap-select__need-validation mb-3 mt-2"
+                                        <select class="selectpicker bootstrap-select__need-validation mb-3 mt-2" 
+                                            id="selectUpdatedRuntime"
                                             data-style="btn"
                                             required
-                                            v-model="runtime"
                                             >
                                             <option v-for="runtime in runtimes">
                                                 {{ runtime }}
@@ -175,7 +182,8 @@ const TasksCreateModal = {
                                     <p class="font-h5 font-bold">Task Handler</p>
                                     <p class="font-h6 font-weight-400">Function used to invoke a task</p>
                                     <div class="custom-input mb-3 mt-2">
-                                        <input
+                                        <input 
+                                            id="CreateTaskFields"
                                             type="text"
                                             required
                                             v-model="task_handler" 
@@ -184,14 +192,6 @@ const TasksCreateModal = {
                                     </div>
                                 </div>
                             </form>
-                            <tasks-location
-                                v-model:location="location"
-                                v-model:cpu="cpu_quota"
-                                v-model:memory="memory_quota"
-                                v-model:timeout="timeout_quota"
-                                v-bind="locations"
-                                >
-                            </tasks-location>
                             <slot></slot>
                         </div>
                     </div>

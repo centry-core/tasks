@@ -1,3 +1,5 @@
+import logging
+
 from flask import request, make_response
 from flask_restful import Resource
 
@@ -31,6 +33,7 @@ class API(Resource):
     def post(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
         event = request.json
+        logging.info(f'event {event}')
         resp = run_task(project.id, event, task.task_id)
         return resp, resp.get('code', 200)
 

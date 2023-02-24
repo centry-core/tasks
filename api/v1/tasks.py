@@ -1,5 +1,4 @@
 import json
-import logging
 
 from flask import request
 from flask_restful import Resource
@@ -12,7 +11,7 @@ from pydantic import ValidationError
 # from ...shared.utils.api_utils import build_req_parser, get
 
 from ...models.tasks import Task
-from ...models.validation_pd import TaskCreateModelPD
+from ...models.validation_pd import TaskCreateModelPD, TaskPutModelPD
 from hurry.filesize import size
 from tools import api_tools, data_tools, MinioClient
 from ...tools import task_tools
@@ -21,6 +20,7 @@ from ...tools import task_tools
 class API(Resource):
     url_params = [
         '<int:project_id>',
+        '<int:project_id>/<string:task_id>',
     ]
 
     def __init__(self, module):
@@ -28,41 +28,57 @@ class API(Resource):
 
     def _get_task(self, project_id: int, task_id: str):
         return self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id), \
-               Task.query.filter_by(task_id=task_id).first()
+            Task.query.filter_by(task_id=task_id, project_id=project_id).first()
 
-    def get(self, project_id: int):
+    def get(self, project_id: int, task_id: str = None):
         args = request.args
-        get_size = args.get('get_size')
-        total, tasks = api_tools.get(project_id, args, Task)
+        get_params = args.get('get_parameters', 'false')
 
-        if get_size and get_size.lower() == 'true':
-            project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
-            c = MinioClient(project)
-            files = c.list_files('tasks')
-            for each in files:
+        if task_id:
+            _, task = self._get_task(project_id, task_id)
+
+            if not task:
+                return {"message": "No such task in selected in project"}, 404
+
+            if get_params.lower() == 'true':
+                resp = [{
+                    "task_id": task.task_id,
+                    "task_name": task.task_name,
+                    "task_parameters": json.loads(task.env_vars).get('task_parameters'),
+                }]
+                return {"total": len(resp), "rows": resp}, 200
+            else:
+                resp = [task.to_json()]
+                return {"total": len(resp), "rows": resp}, 200
+
+        project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+        c = MinioClient(project)
+        files = c.list_files('tasks')
+        total, tasks = api_tools.get(project_id, args, Task)
+        rows = []
+        for each in files:
+            for task in tasks:
                 name = each["name"]
-                task_name = [x.task_name for x in tasks if str(x.zippath).split("/")[-1] == name]
-                task_name = task_name[0] if task_name else ""
-                each["task_name"] = task_name
-                each["size"] = size(each["size"])
-            return {"total": len(files), "rows": files}, 200
-        else:
-            reports = []
-            for each in tasks:
-                reports.append(each.to_json())
-            return {"total": total, "rows": reports}, 200
+                if str(task.zippath).split("/")[-1] == name:
+                    each['task_id'] = task.task_id
+                    each["task_name"] = task.task_name
+                    each['webhook'] = task.webhook
+                    each["size"] = size(each["size"])
+                    rows.append(each)
+
+        return {"total": len(rows), "rows": rows}, 200
 
     def post(self, project_id: int):
         file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
         if data is None:
             return {"message": "Empty data object"}, 400
+        data['project_id'] = project_id
 
         if file is not None:
             data['task_package'] = file.filename
-
         try:
-            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
+            pd_obj = TaskCreateModelPD(**data)
         except ValidationError as e:
             return e.errors(), 400
 
@@ -89,28 +105,47 @@ class API(Resource):
             args=task_payload
 
         )
-        return {"task_id": task.id, "message": f"Task {task_payload['funcname']} created"}, 201
+        return {"task_id": task.task_id, "message": f"Task {task_payload['funcname']} created"}, 201
 
     def put(self, project_id: int, task_id: str):
+        file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
 
         if data is None:
             return {"message": "Empty data object"}, 400
 
         try:
-            pd_obj = TaskCreateModelPD(project_id=project_id, **data)
+            pd_obj = TaskPutModelPD(project_id=project_id, **data)
         except ValidationError as e:
             return e.errors(), 400
-
         project, task = self._get_task(project_id, task_id)
-        task.task_handler = pd_obj.dict().get("invoke_func")
-        task.region = pd_obj.dict().get("region")
-        task.runtime = pd_obj.dict().get("runtime")
-        task.env_vars = pd_obj.dict().get("env_vars")
+        if not task:
+            return {"message": "No such task in selected in project"}, 404
+
+        task.task_name = pd_obj.dict().get("task_name")
+
+        file_size = None
+        if file is not None:
+            data['task_package'] = file.filename
+            task.zippath = f"tasks/{file.filename}"
+            api_tools.upload_file(bucket="tasks", f=file, project=project)
+            c = MinioClient(project)
+            file_size = size(c.get_file_size('tasks', filename=file.filename))
+
+        task.task_handler = pd_obj.dict().get("task_handler")
+        task.env_vars = json.dumps(pd_obj.dict().get("task_parameters"))
         task.commit()
-        return task.to_json(), 200
+        resp = task.to_json()
+        resp['size'] = file_size
+
+        return resp, 200
 
     def delete(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)
+        if not task:
+            return {"message": "No such task in selected in project"}, 404
+
+        c = MinioClient(project=project)
+        c.remove_file('tasks', str(task.zippath).split("/")[-1])
         task.delete()
         return None, 204

@@ -1,17 +1,33 @@
 const TasksRunTaskModal = {
+    props: ['selectedTask'],
     data() {
         return {
             isLoading: false,
-            testParams: [],
         }
     },
     mounted() {
-
+        const vm = this;
+        $("#RunTaskModal").on("show.bs.modal", function (e) {
+            vm.fetchParameters().then((data) => {
+                const taskParams = data.rows[0].task_parameters;
+                if (taskParams) {
+                    vm.test_parameters.set(taskParams);
+                }
+            })
+        });
+    },
+    computed: {
+        test_parameters() {
+            return ParamsTable.Manager("runTaskModal_test_params")
+        },
     },
     methods: {
-        fetchParameters() {
-
-        }
+        async fetchParameters() {
+            const res = await fetch (`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}?get_parameters=true`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
     },
     template: `
     <div class="modal modal-base fixed-left fade shadow-sm" tabindex="-1" role="dialog" id="RunTaskModal" xmlns="http://www.w3.org/1999/html">
@@ -35,51 +51,7 @@ const TasksRunTaskModal = {
                     </div>
                     <div class="modal-body">
                         <div class="section">
-                            <div class="row">
-                                <div class="col">
-                                    <p class="font-h5 font-bold font-uppercase">Task parameters</p>
-                                    <p class="font-h6 font-weight-400">Environment variables for the task</p>
-                                </div>
-                            </div>
-                            <div class="row mt-4">
-                                <div class="col">
-                                    <div class="test_parameters_error"></div>
-                                    <table class="table table-borderless params-table"
-                                            id="testParams"
-                                            data-toggle="table">
-                                        <thead class="thead-light">
-                                        <tr>
-                                            <th scope="col" data-sortable="true" data-field="name"
-                                                data-formatter="{{ custom_formatters.get('name', 'ParamsTable.inputFormatter') }}"
-                                                data-width="144" data-width-unit="px"
-                                            >
-                                                Name
-                                            </th>
-                                            <th scope="col" data-sortable="true" data-field="default"
-                                                data-formatter="{{ custom_formatters.get('default', 'ParamsTable.inputFormatter') }}"
-                                            >
-                                                Default value
-                                            </th>
-                                            <th scope="col" data-sortable="true" data-field="description"
-                                                data-formatter="{{ custom_formatters.get('description', 'ParamsTable.inputFormatter') }}"
-                                            >
-                                                Description
-                                            </th>
-                                            <th scope="col" data-field="action"
-                                                data-formatter="{{ custom_formatters.get('action', 'ParamsTable.parametersDeleteFormatter') }}"
-                                                data-width="56" data-width-unit="px"
-                                            >&nbsp;</th>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="row pt-2">
-                                <div class="col">
-                                    <button type="button" class="btn btn-sm btn-secondary">
-                                        <i class="fas fa-plus mr-2"></i>Add Parameter
-                                    </button>
-                                </div>
-                            </div>
+                            <slot></slot>
                         </div>
                     </div>
                 </div>

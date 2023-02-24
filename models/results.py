@@ -12,7 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 
-from sqlalchemy import String, Column, Integer, Text
+from sqlalchemy import String, Column, Integer, Text, Boolean, Float, JSON
 
 from tools import db, db_tools
 
@@ -22,7 +22,11 @@ class TaskResults(db_tools.AbstractBaseMixin, db.Base):
 
     id = Column(Integer, primary_key=True)
     project_id = Column(Integer, unique=False, nullable=False)
-    task_id = Column(String(128), unique=False, nullable=False)
-    ts = Column(Integer, unique=False, nullable=False)
-    results = Column(Text, unique=False, nullable=False)
-    log = Column(Text, unique=False, nullable=False)
+    task_id = Column(String(128), unique=False, nullable=True)
+    ts = Column(Integer, unique=False, nullable=True)
+    results = Column(Text, unique=False, nullable=True)
+    log = Column(Text, unique=False, nullable=True)
+    task_duration = Column(Float, unique=False, nullable=True)
+    task_status = Column(Boolean, unique=False, nullable=True, default=False)
+    task_result_id = Column(String(128), unique=True, nullable=False)
+    task_stats = Column(JSON, nullable=True, unique=False)

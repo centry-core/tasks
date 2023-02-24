@@ -1,5 +1,5 @@
 const TasksListAside = {
-    props: ['isInitDataFetched', 'selectedTask', 'selectedTaskRowIndex', 'checkedBucketsList', 'bucketCount'],
+    props: ['isInitDataFetched', 'selectedTask', 'checkedBucketsList', 'bucketCount'],
     data() {
         return {
             loadingDelete: false,
@@ -7,7 +7,7 @@ const TasksListAside = {
     },
     computed: {
         responsiveTableHeight() {
-            return `${(window.innerHeight - 270)}px`;
+            return `${(window.innerHeight - 286)}px`;
         }
     },
     watch: {
@@ -20,7 +20,7 @@ const TasksListAside = {
             const vm = this;
             $('#task-aside-table').on('sort.bs.table', function (name, order) {
                 vm.$nextTick(() => {
-                    $('#task-aside-table').find(`[data-uniqueid='${vm.selectedTask.task_name}']`).addClass('highlight');
+                    $('#task-aside-table').find(`[data-uniqueid='${vm.selectedTask.task_id}']`).addClass('highlight');
                 })
             });
         },
@@ -42,20 +42,21 @@ const TasksListAside = {
                     </div>
                 </div>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="padding-top: 0">
                 <table class="table table-borderless table-fix-thead"
                     id="task-aside-table"
                     data-toggle="table"
-                    data-unique-id="task_name">
+                    data-unique-id="task_id">
                     <thead class="thead-light bg-transparent">
                         <tr>
+                            <th data-visible="false" data-field="task_id">index</th>
                             <th data-checkbox="true" data-visible="false" data-field="select"></th>
-                            <th data-sortable="true" data-field="name" class="bucket-name">NAME</th>
+                            <th data-sortable="true" data-field="task_name" class="bucket-name">NAME</th>
                             <th data-sortable="true" data-cell-style="nameStyle" data-field="size" class="bucket-size">SIZE</th>
                             <th data-cell-style="nameStyle" 
                                 data-formatter='<div class="d-none">
-                                    <button class="btn btn-default btn-xs btn-table btn-icon__xs bucket_delete"><i class="fas fa-trash-alt"></i></button>
-                                    <button class="btn btn-default btn-xs btn-table btn-icon__xs bucket_setting"><i class="fas fa-gear"></i></button>
+                                    <button class="btn btn-default btn-xs btn-table btn-icon__xs task_delete"><i class="fas fa-trash-alt"></i></button>
+                                    <button class="btn btn-default btn-xs btn-table btn-icon__xs task_setting"><i class="fas fa-gear"></i></button>
                                 </div>'
                                 data-events="bucketEvents">
                             </th>
@@ -73,12 +74,14 @@ const TasksListAside = {
 }
 
 var bucketEvents = {
-    "click .bucket_delete": function (e, value, row, index) {
+    "click .task_delete": function (e, value, row, index) {
         e.stopPropagation();
         const vm = vueVm.registered_components.tasks;
         vm.openConfirm();
     },
-    "click .bucket_setting": function (e, value, row, index) {
-        console.log("bucket_setting", row, index)
+    "click .task_setting": function (e, value, row, index) {
+        e.stopPropagation();
+        console.log('click')
+        $('#UpdateTaskModal').modal('show');
     }
 }

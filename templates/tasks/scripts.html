@@ -1,10 +1,18 @@
 {{ template_slot('params_table_scripts') | safe }}
 {{ template_slot('locations_scripts') | safe }}
 
+<script src="{{ url_for('design-system.static', filename='assets/vendor/chart.js/chart.min.js') }}"></script>
+<script src="{{ url_for('design-system.static', filename='assets/vendor/chart.js/chartjs-adapter-date-fns.bundle.min.js') }}"></script>
+
 <script src="{{ url_for('theme.static', filename='js/params_table.js') }}"></script>
+<script src="{{ url_for('tasks.static', filename='js/utils/chart-options.js') }}"></script>
+<script src="{{ url_for('tasks.static', filename='js/utils/formatters.js') }}"></script>
+<script src="{{ url_for('tasks.static', filename='js/TasksLocation.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('tasks.static', filename='js/TasksChart.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/TasksTable.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/TasksRunTaskModal.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/TasksConfirmModal.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/TasksListAside.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/TasksCreateModal.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('tasks.static', filename='js/TasksUpdateModal.js') }}" type="text/javascript"></script>
 <script src="{{ url_for('tasks.static', filename='js/Tasks.js') }}" type="text/javascript"></script>
