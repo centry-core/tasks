@@ -1,31 +1,17 @@
-window.tasksBarChart = null;
-
 const TasksTable = {
     props: ['selected-task', 'task-info'],
+    components: {
+        'tasks-chart': TasksChart,
+    },
     data() {
         return {
             websocket: undefined,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: false,
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            display: false
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    }
-                }
-            },
             isLoading: true,
+            labels: [],
+            chartBarDatasets: [],
+            chartLineDatasets: [],
+            chartBarOptions,
+            chartLineOptions,
         }
     },
     watch: {
@@ -34,20 +20,45 @@ const TasksTable = {
             // this.fetchLogs().then(data => {
             //     this.init_websocket(data.websocket_url)
             // })
+            this.chartBarDatasets = [];
+            this.labels = [];
             this.fetchTasksResult(newValue.task_id)
                 .then(data => {
                     const taskData = Object.values(data.rows);
-                    const labels = [];
-                    const datasets = [];
+                    const barDatasets = [{
+                            data: [],
+                            borderWidth: 1,
+                            borderColor: ['#5933c6'],
+                            backgroundColor: ['#5933c6']
+                        }];
+                    const lineDatasets = [
+                        {
+                            data: [],
+                            label: 'CPU',
+                            borderWidth: 1,
+                            borderColor: ['red'],
+                            backgroundColor: ['red'],
+                            yAxisID: 'cpu',
+                        },
+                        {
+                            data: [],
+                            label: 'MEMORY',
+                            borderWidth: 1,
+                            borderColor: ['#5933c6'],
+                            backgroundColor: ['#5933c6'],
+                            yAxisID: 'memory',
+                        }
+                    ];
+                    $('#logs-table').bootstrapTable('load', taskData.flat())
                     taskData.flat().forEach(result => {
-                        labels.push(result.ts);
-                        datasets.push(result.task_duration)
-                    })
-                    if (window.tasksBarChart) {
-                        this.updateChartRun(datasets, labels);
-                    } else {
-                        this.createChartRun(datasets, labels);
-                    }
+                        this.labels.push(result.ts);
+                        const memory_usage = result.task_stats?.memory_usage ? Number(result.task_stats?.memory_usage.substring(0, result.task_stats?.memory_usage.length - 1)) : 0;
+                        barDatasets[0].data.push(result.task_duration)
+                        lineDatasets[0].data.push(result.task_stats?.cpu_usage);
+                        lineDatasets[1].data.push(memory_usage);
+                    });
+                    this.chartBarDatasets = barDatasets;
+                    this.chartLineDatasets = lineDatasets;
                 })
                 .finally(() => {
                     this.isLoading = false;
@@ -63,7 +74,7 @@ const TasksTable = {
             return res.json();
         },
         async fetchLogs() {
-            const res = await fetch (`/api/v1/tasks/loki_url/1/?task_id=${this.selectedTask.task_id}`,{
+            const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${this.selectedTask.task_id}`,{
                 method: 'GET',
             })
             return res.json();
@@ -96,28 +107,6 @@ const TasksTable = {
         on_websocket_error(message) {
             // console.log(message)
         },
-        createChartRun(datasets, labels) {
-            const ctx = document.getElementById('chartRun');
-            const chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: datasets,
-                        borderWidth: 1,
-                        borderColor: ['#5933c6'],
-                        backgroundColor: ['#5933c6']
-                    }]
-                },
-                options: this.options,
-            });
-            window.tasksBarChart = chart
-        },
-        updateChartRun(datasets, labels) {
-            window.tasksBarChart.data.labels = labels;
-            window.tasksBarChart.data.datasets[0].data = datasets;
-            window.tasksBarChart.update();
-        },
         copyWebhook() {
             const copiedText = document.querySelector('.web-hook-copy');
             const textInput = document.createElement("input");
@@ -130,47 +119,82 @@ const TasksTable = {
         },
     },
     template: `
-        <div class="card mt-3 mr-3 p-28 card-table-sm w-100">
-            <div class="d-flex justify-content-between">
-                <p class="font-h4 font-bold">{{ selectedTask.task_name }}</p>
-                <div class="d-flex justify-content-end">
-                    <button class="btn btn-secondary btn-icon btn-icon__purple mr-2"
-                         data-toggle="modal" 
-                         data-target="#RunTaskModal">
-                        <i class="icon__18x18 icon-run"></i>
-                    </button>
-                    <button class="btn btn-secondary btn-icon btn-icon__purple">
-                        <i class="fas fa-sync"></i>
-                    </button>
-                </div>
-            </div>
-            <table class="mt-24" style="width: max-content">
-                <tr>
-                    <td class="font-h6 text-gray-500 font-semibold font-uppercase pr-3">webhook</td>
-                    <td class="font-h5 d-flex align-items-center">
-                        <span class="web-hook-copy">{{ selectedTask.webhook }}</span>
-                        <i class="icon__18x18 icon-multichoice ml-3" @click="copyWebhook"></i>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="text-gray-500 font-h6 font-semibold font-uppercase pr-3">task id</td>
-                    <td class="font-h5">{{ selectedTask.task_id }}</td>
-                </tr>
-            </table>
-            
-            <div class="d-grid grid-column-2 gap-3 mt-3">
-                <div>
-                    <p class="text-gray-500 font-h6 font-semibold font-uppercase mb-2">runs</p>
-                    <div class="position-relative" style="height: 250px">
-                        <div class="layout-spinner" v-if="isLoading">
-                            <div class="spinner-centered">
-                                <i class="spinner-loader__32x32"></i>
-                            </div>
-                        </div>
-                        <canvas id="chartRun"></canvas>
+        <div class="w-100">
+            <div class="card mt-3 mr-3 p-28 card-table-sm">
+                <div class="d-flex justify-content-between">
+                    <p class="font-h4 font-bold">{{ selectedTask.task_name }}</p>
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-secondary btn-icon btn-icon__purple mr-2"
+                             data-toggle="modal" 
+                             data-target="#RunTaskModal">
+                            <i class="icon__18x18 icon-run"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-icon btn-icon__purple">
+                            <i class="fas fa-sync"></i>
+                        </button>
                     </div>
                 </div>
+                <table class="mt-24" style="width: max-content">
+                    <tr>
+                        <td class="font-h6 text-gray-500 font-semibold font-uppercase pr-3">webhook</td>
+                        <td class="font-h5 d-flex align-items-center">
+                            <span class="web-hook-copy">{{ selectedTask.webhook }}</span>
+                            <i class="icon__18x18 icon-multichoice ml-3" @click="copyWebhook"></i>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-gray-500 font-h6 font-semibold font-uppercase pr-3">task id</td>
+                        <td class="font-h5">{{ selectedTask.task_id }}</td>
+                    </tr>
+                </table>
+                <p class="text-gray-500 font-h6 font-semibold font-uppercase mb-2 mt-3">runs</p>
+                <div class="d-grid grid-column-2 gap-3">
+                    <tasks-chart
+                        :key="isLoading"
+                        :is-loading="isLoading"
+                        chart-id="chartRun"
+                        :options="chartBarOptions"
+                        :datasets="chartBarDatasets"
+                        type="bar"
+                        :labels="labels"
+                    ></tasks-chart>
+                    <tasks-chart
+                        :key="isLoading"
+                        :is-loading="isLoading"
+                        chart-id="chartMemoryCpu"
+                        :options="chartLineOptions"
+                        :datasets="chartLineDatasets"
+                        type="line"
+                        :labels="labels"
+                    ></tasks-chart>
+                </div>
             </div>
+            
+            <Table-Card
+                header='Execution log'
+                :adaptive-height="true"
+                :borders="true"
+                :table_attributes="{
+                    'data-pagination': 'true',
+                    'data-page-list': '[5, 10, 15, 20]',
+                    'data-page-size': 5,
+                    'id': 'logs-table',
+                    'data-side-pagination': 'client',
+                    'data-pagination-parts': ['pageInfo', 'pageList', 'pageSize']
+                }"
+                container_classes="mt-3 mr-3"
+            >
+                <template #table_headers>
+                    <th data-visible="false" data-field="id">index</th>
+                    <th scope="col" data-sortable="true" data-field="name">Name</th>
+                    <th scope="col" data-sortable="true" class="w-100" data-field="ts">Date</th>
+                    <th scope="col" data-sortable="true" data-field="task_status"
+                        data-formatter="report_formatters.reportsStatusFormatter">Status
+                    </th>
+                    <th scope="coll" data-sortable="false" data-fiels="ts"
+                        data-formatter="filesFormatter.actions"></th>
+                </template>
+            </Table-Card>
         </div>
     `
 }
