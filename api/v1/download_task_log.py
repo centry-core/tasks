@@ -1,4 +1,3 @@
-import logging
 from io import BytesIO
 
 from flask import send_file, abort
