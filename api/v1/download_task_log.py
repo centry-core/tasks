@@ -22,7 +22,6 @@ class API(Resource):
         bucket_name = str(task_name).replace("_", "").replace(" ", "").lower()
         try:
             file = minio_client.download_file(bucket_name,  f'{task_result_id}.log')
-            logging.info(f'file  -{file}')
             try:
                 return send_file(BytesIO(file), attachment_filename=file)
             except TypeError:  # new flask
