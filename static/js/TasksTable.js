@@ -17,9 +17,9 @@ const TasksTable = {
     watch: {
         selectedTask(newValue) {
             this.isLoading = true;
-            // this.fetchLogs().then(data => {
-            //     this.init_websocket(data.websocket_url)
-            // })
+            this.fetchLogs().then(data => {
+                this.init_websocket(data.websocket_url)
+            })
             this.chartBarDatasets = [];
             this.labels = [];
             this.fetchTasksResult(newValue.task_id)

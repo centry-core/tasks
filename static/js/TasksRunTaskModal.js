@@ -28,6 +28,14 @@ const TasksRunTaskModal = {
             })
             return res.json();
         },
+        async runTask(){
+            const resp = await fetch(`/api/v1/tasks/run_task/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
+                method: 'POST',
+                body: vm.test_parameters.get(),
+            })
+            return resp.json()
+        },
+
     },
     template: `
     <div class="modal modal-base fixed-left fade shadow-sm" tabindex="-1" role="dialog" id="RunTaskModal" xmlns="http://www.w3.org/1999/html">
@@ -44,7 +52,8 @@ const TasksRunTaskModal = {
                                 </button>
                                 <button type="button" 
                                     class="btn btn-basic d-flex align-items-center"
-                                    >Run<i v-if="isLoading" class="preview-loader__white ml-2"></i>
+                                    >Run<i v-if="isLoading" class="preview-loader__white ml-2"
+                                    @click="runTask"></i>
                                 </button>
                             </div>
                         </div>

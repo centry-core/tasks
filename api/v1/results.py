@@ -9,7 +9,7 @@ from hurry.filesize import size
 
 from ...models.results import TaskResults
 from ...models.tasks import Task
-from ...tools.task_tools import create_task_result
+from ...tools.task_tools import create_task_result, write_task_run_logs_to_minio_bucket
 
 
 class API(Resource):
@@ -76,5 +76,9 @@ class API(Resource):
         task_result.task_stats = data.get('task_stats')
         task_result.commit()
 
+        project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+        task_name = Task.query.filter_by(project_id=project_id, task_id=task_result.task_id).first().task_name
+
+        write_task_run_logs_to_minio_bucket(project_id, task_result, task_name, project)
         resp = {"message": "Accepted", "code": 202, "task_result_id": task_result.task_result_id}
         return make_response(resp, resp.get('code', 202))
