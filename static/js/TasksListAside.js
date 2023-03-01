@@ -26,7 +26,7 @@ const TasksListAside = {
         },
     },
     template: `
-        <aside class="m-3 card card-table-sm" style="width: 450px">
+        <aside class="m-3 card card-table-sm" style="width: 340px">
             <div class="row p-4">
                 <div class="col-4">
                     <h4>Tasks</h4>
@@ -36,7 +36,7 @@ const TasksListAside = {
                         <button type="button"
                              data-toggle="modal" 
                              data-target="#CreateTaskModal"
-                             class="btn btn-secondary btn-sm btn-icon__sm mr-2">
+                             class="btn btn-basic btn-sm btn-icon__sm">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>

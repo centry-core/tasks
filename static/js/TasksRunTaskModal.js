@@ -28,10 +28,34 @@ const TasksRunTaskModal = {
             })
             return res.json();
         },
-        async runTask(){
+        handleRunTask() {
+            this.runTask().then(res => {
+                $('#RunTaskModal').modal('hide');
+                // TODO duplicate logic for get logs if task is running
+                this.fetchLogs(this.selectedTask.task_id).then(data => {
+                    this.$emit('run-task', data)
+                })
+            })
+        },
+        async fetchLogs(taskId) {
+            const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${taskId}`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
+        async runTask() {
+            // const params = [
+            //         { name: "user", default: "user", type: "string", description: "", action: "" },
+            //         { name: "password", default: "password", type: "string", description: "", action: "" },
+            //         { name: "vhost", default: "carrier", type: "string", description: "", action: "" }
+            //     ]
             const resp = await fetch(`/api/v1/tasks/run_task/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
                 method: 'POST',
-                body: vm.test_parameters.get(),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body:  JSON.stringify(this.test_parameters.get()),
+                // body:  JSON.stringify(params),
             })
             return resp.json()
         },
@@ -52,8 +76,8 @@ const TasksRunTaskModal = {
                                 </button>
                                 <button type="button" 
                                     class="btn btn-basic d-flex align-items-center"
-                                    >Run<i v-if="isLoading" class="preview-loader__white ml-2"
-                                    @click="runTask"></i>
+                                    @click="handleRunTask"
+                                    >Run<i v-if="isLoading" class="preview-loader__white ml-2"></i>
                                 </button>
                             </div>
                         </div>

@@ -1,5 +1,5 @@
 const TasksTable = {
-    props: ['selected-task', 'task-info'],
+    props: ['selected-task', 'task-info', 'tags_mapper'],
     components: {
         'tasks-chart': TasksChart,
     },
@@ -17,14 +17,12 @@ const TasksTable = {
     watch: {
         selectedTask(newValue) {
             this.isLoading = true;
-            this.fetchLogs().then(data => {
-                this.init_websocket(data.websocket_url)
-            })
             this.chartBarDatasets = [];
             this.labels = [];
             this.fetchTasksResult(newValue.task_id)
                 .then(data => {
-                    const taskData = Object.values(data.rows);
+                    const taskData = Object.values(data.rows).flat().map(item => ({...item, task_name: this.selectedTask.task_name }));;
+                    console.log(taskData)
                     const barDatasets = [{
                             data: [],
                             borderWidth: 1,
@@ -49,11 +47,11 @@ const TasksTable = {
                             yAxisID: 'memory',
                         }
                     ];
-                    $('#logs-table').bootstrapTable('load', taskData.flat())
-                    taskData.flat().forEach(result => {
+                    $('#logs-table').bootstrapTable('load', taskData)
+                    taskData.forEach(result => {
                         this.labels.push(result.ts);
                         const memory_usage = result.task_stats?.memory_usage ? Number(result.task_stats?.memory_usage.substring(0, result.task_stats?.memory_usage.length - 1)) : 0;
-                        barDatasets[0].data.push(result.task_duration)
+                        barDatasets[0].data.push(result.task_duration / 1000)
                         lineDatasets[0].data.push(result.task_stats?.cpu_usage);
                         lineDatasets[1].data.push(memory_usage);
                     });
@@ -73,40 +71,6 @@ const TasksTable = {
             })
             return res.json();
         },
-        async fetchLogs() {
-            const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${this.selectedTask.task_id}`,{
-                method: 'GET',
-            })
-            return res.json();
-        },
-        init_websocket(websocketURL) {
-            this.websocket = new WebSocket(websocketURL)
-            this.websocket.onmessage = this.on_websocket_message
-            this.websocket.onopen = this.on_websocket_open
-            this.websocket.onclose = this.on_websocket_close
-            this.websocket.onerror = this.on_websocket_error
-        },
-        on_websocket_open(message) {
-            // console.log(message)
-        },
-        on_websocket_message(message) {
-            if (message.type !== 'message') {
-                console.warn('Unknown message from socket', message)
-                return
-            }
-            const data = JSON.parse(message.data)
-            data.streams.forEach(stream_item => {
-                stream_item.values.forEach(message_item => {
-                    this.logs.push(`${stream_item.stream.level} : ${message_item[1]}`)
-                })
-            })
-        },
-        on_websocket_close(message) {
-            // console.log(message)
-        },
-        on_websocket_error(message) {
-            // console.log(message)
-        },
         copyWebhook() {
             const copiedText = document.querySelector('.web-hook-copy');
             const textInput = document.createElement("input");
@@ -119,7 +83,7 @@ const TasksTable = {
         },
     },
     template: `
-        <div class="w-100">
+        <div style="width: calc(100% - 370px)">
             <div class="card mt-3 mr-3 p-28 card-table-sm">
                 <div class="d-flex justify-content-between">
                     <p class="font-h4 font-bold">{{ selectedTask.task_name }}</p>
@@ -170,6 +134,23 @@ const TasksTable = {
                 </div>
             </div>
             
+            <div class="card card-table mt-3 mr-3">
+                <div class="card-header">
+                    <div class="row">
+                        <div class="col-2">
+                            <p class="font-h4 font-bold">Runtime</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body card-table" 
+                    v-show="tags_mapper.length > 0"
+                    style="padding-bottom: 30px !important;">
+                    <div class="container-logs border p-3" style="border-radius: 4px;">
+                        <table id="tableLogs" class="table-logs"></table>
+                    </div>
+                </div>
+            </div>
+            
             <Table-Card
                 header='Execution log'
                 :adaptive-height="true"
@@ -191,7 +172,7 @@ const TasksTable = {
                     <th scope="col" data-sortable="true" data-field="task_status"
                         data-formatter="report_formatters.reportsStatusFormatter">Status
                     </th>
-                    <th scope="coll" data-sortable="false" data-fiels="ts"
+                    <th scope="coll" data-sortable="false" data-field="task_name"
                         data-formatter="filesFormatter.actions"></th>
                 </template>
             </Table-Card>

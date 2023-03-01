@@ -2,7 +2,6 @@ const TasksChart = {
     props: ['labels', 'datasets', 'options', 'isLoading', 'chartId', 'type'],
     mounted() {
         if (!this.isLoading) {
-            console.log(this.options)
             const ctx = document.getElementById(this.chartId);
             const chart = new Chart(ctx, {
                 type: this.type,
