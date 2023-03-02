@@ -27,6 +27,6 @@ class TaskResults(db_tools.AbstractBaseMixin, db.Base):
     results = Column(Text, unique=False, nullable=True)
     log = Column(Text, unique=False, nullable=True)
     task_duration = Column(Float, unique=False, nullable=True)
-    task_status = Column(Boolean, unique=False, nullable=True, default=False)
+    task_status = Column(Text, unique=False, nullable=True)
     task_result_id = Column(String(128), unique=True, nullable=False)
     task_stats = Column(JSON, nullable=True, unique=False)
