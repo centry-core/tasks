@@ -25,6 +25,7 @@ const Tasks = {
             },
             checkedBucketsList: [],
             tags_mapper: [],
+            isShowLastLogs: true,
         }
     },
     mounted() {
@@ -167,8 +168,7 @@ const Tasks = {
                     $('#tableLogs').append(row);
                     $(`.log-message__${streamIndex}-${messageIndex}`).append(`<plaintext>${message}`);
 
-                    const elem = document.querySelector('.container-logs');
-                    elem.scrollTop = elem.scrollHeight;
+                    if (this.isShowLastLogs) this.scrollLogsToEnd();
                 })
             })
         },
@@ -183,6 +183,17 @@ const Tasks = {
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             return d.toLocaleString("en-GB", {timeZone: tz})
         },
+        scrollLogsToEnd() {
+            const elem = document.querySelector('.container-logs');
+            elem.scrollTop = elem.scrollHeight;
+        },
+        setShowLastLogs() {
+            this.isShowLastLogs = !this.isShowLastLogs;
+            if (this.isShowLastLogs) {
+                const elem = document.querySelector('.container-logs');
+                elem.scrollTop = elem.scrollHeight;
+            }
+        },
     },
     template: `
         <main class="d-flex align-items-start justify-content-center mb-3">
@@ -195,8 +206,10 @@ const Tasks = {
                 :is-init-data-fetched="isInitDataFetched">
             </tasks-list-aside>
             <tasks-table
+                @change-scroll-logs="setShowLastLogs"
                 :selected-task="selectedTask"
                 :session="session"
+                :is-show-last-logs="isShowLastLogs"
                 :tags_mapper="tags_mapper"
                 :task-info="taskInfo">
             </tasks-table>

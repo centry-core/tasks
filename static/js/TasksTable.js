@@ -1,5 +1,5 @@
 const TasksTable = {
-    props: ['selected-task', 'task-info', 'tags_mapper'],
+    props: ['selected-task', 'task-info', 'tags_mapper', 'isShowLastLogs'],
     components: {
         'tasks-chart': TasksChart,
     },
@@ -21,7 +21,7 @@ const TasksTable = {
             this.labels = [];
             this.fetchTasksResult(newValue.task_id)
                 .then(data => {
-                    const taskData = Object.values(data.rows).flat().map(item => ({...item, task_name: this.selectedTask.task_name }));;
+                    const taskData = Object.values(data.rows).flat().map(item => ({...item, task_name: this.selectedTask.task_name }));
                     console.log(taskData)
                     const barDatasets = [{
                             data: [],
@@ -136,9 +136,19 @@ const TasksTable = {
             
             <div class="card card-table mt-3 mr-3">
                 <div class="card-header">
-                    <div class="row">
-                        <div class="col-2">
-                            <p class="font-h4 font-bold">Runtime</p>
+                    <div class="d-flex justify-content-between">
+                        <p class="font-h3 font-bold">Runtime</p>
+                        <div class="d-flex">
+                            <label class="custom-checkbox d-flex align-items-center">
+                                <input type="checkbox" 
+                                    :checked="isShowLastLogs"
+                                    @click="$emit('change-scroll-logs')"><span class="ml-2">Show last logs</span>
+                            </label>
+                            <select class="selectpicker bootstrap-select__b ml-3" data-style="btn">
+                                <option>result_task_id_1</option>
+                                <option>result_task_id_2</option>
+                                <option>result_task_id_3</option>
+                            </select>
                         </div>
                     </div>
                 </div>
