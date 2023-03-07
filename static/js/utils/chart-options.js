@@ -38,7 +38,7 @@ const chartBarOptions = {
                 display: false
             },
             title: {
-                text: 'duration, ms',
+                text: 'duration, sec',
                     display: true,
             }
         },

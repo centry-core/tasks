@@ -24,7 +24,7 @@ class API(Resource):
 
         task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
         # TODO: to check if this is not bug and is proper solution to get last task_result_id by latest id.
-        task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(TaskResults.id.desc()).first().task_result_id
+        task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(TaskResults.id.desc()).first_or_404().task_result_id
 
         if not task:
             return {"message": f"no such task_id found {task_id}"}, 404

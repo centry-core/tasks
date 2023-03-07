@@ -24,6 +24,8 @@ const Tasks = {
                 "task_id": null
             },
             checkedBucketsList: [],
+            tags_mapper: [],
+            isShowLastLogs: true,
         }
     },
     mounted() {
@@ -39,29 +41,35 @@ const Tasks = {
             }
         })
     },
+    watch: {
+        selectedTask(newValue) {
+            $('#tableLogs').empty();
+            this.tags_mapper = [];
+        }
+    },
     methods: {
         setBucketEvent(taskList, resultList) {
             const vm = this;
-            $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function(event) {
+            $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function (event) {
                 const selectedUniqId = this.getAttribute('data-uniqueid');
                 vm.selectedTask = taskList.find(row => row.task_id === selectedUniqId);
                 $(this).addClass('highlight').siblings().removeClass('highlight');
             });
         },
         async fetchTasks() {
-            const res = await fetch (`/api/v1/tasks/tasks/${this.session}`,{
+            const res = await fetch(`/api/v1/tasks/tasks/${this.session}`, {
                 method: 'GET',
             })
             return res.json();
         },
         async deleteTaskApi() {
-            const res = await fetch (`/api/v1/tasks/tasks/${this.session}/${this.selectedTask.task_id}`,{
+            const res = await fetch(`/api/v1/tasks/tasks/${this.session}/${this.selectedTask.task_id}`, {
                 method: 'DELETE',
             })
         },
         selectFirstTask() {
-            $('#task-aside-table tbody tr').each(function(i, item) {
-                if(i === 0) {
+            $('#task-aside-table tbody tr').each(function (i, item) {
+                if (i === 0) {
                     const firstRow = $(item);
                     firstRow.addClass('highlight');
                 }
@@ -101,6 +109,91 @@ const Tasks = {
                 this.updateTasksList();
             })
         },
+        runTask(payload) {
+            this.init_websocket(payload.websocket_url)
+        },
+        init_websocket(websocketURL) {
+            this.websocket = new WebSocket(websocketURL)
+            this.websocket.onmessage = this.on_websocket_message
+            this.websocket.onopen = this.on_websocket_open
+            this.websocket.onclose = this.on_websocket_close
+            this.websocket.onerror = this.on_websocket_error
+        },
+        on_websocket_open(message) {
+            // console.log(message)
+        },
+        on_websocket_message(message) {
+            if (message.type !== 'message') {
+                console.warn('Unknown message from socket', message)
+                return
+            }
+            const tagColors = [
+                '#f89033',
+                '#e127ff',
+                '#2BD48D',
+                '#2196C9',
+                '#6eaecb',
+                '#385eb0',
+                '#7345fc',
+                '#94E5B0',
+            ]
+
+            const data = JSON.parse(message.data);
+
+            const logsTag = data.streams.map(logTag => {
+                return logTag.stream.hostname;
+            })
+
+            const uniqTags = [...new Set(logsTag)].filter(tag => !!(tag))
+            uniqTags.forEach(tag => {
+                if (!this.tags_mapper.includes(tag)) {
+                    this.tags_mapper.push(tag)
+                }
+            })
+
+            data.streams.forEach((stream_item, streamIndex) => {
+                stream_item.values.forEach((message_item, messageIndex) => {
+                    console.log(message_item[1])
+                    const timestamp = `<td>${this.normalizeDate(message_item)}</td>`;
+
+                    const indexColor = this.tags_mapper.indexOf(stream_item.stream.hostname);
+                    const coloredTag = `<td><span style="color: ${tagColors[indexColor]}" class="ml-4">[${stream_item.stream.hostname}]</span></td>`
+
+                    const log_level = stream_item.stream.level;
+                    const coloredText = `<td><span class="colored-log colored-log__${log_level}">${log_level}</span></td>`
+
+                    const message = message_item[1]
+
+                    const row = `<tr>${timestamp}${coloredTag}${coloredText}<td class="log-message__${streamIndex}-${messageIndex}"></td></tr>`
+                    $('#tableLogs').append(row);
+                    $(`.log-message__${streamIndex}-${messageIndex}`).append(`<plaintext>${message}`);
+
+                    if (this.isShowLastLogs) this.scrollLogsToEnd();
+                })
+            })
+        },
+        on_websocket_close(message) {
+            // console.log(message)
+        },
+        on_websocket_error(message) {
+            // console.log(message)
+        },
+        normalizeDate(message_item) {
+            const d = new Date(Number(message_item[0]) / 1000000)
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            return d.toLocaleString("en-GB", {timeZone: tz})
+        },
+        scrollLogsToEnd() {
+            const elem = document.querySelector('.container-logs');
+            elem.scrollTop = elem.scrollHeight;
+        },
+        setShowLastLogs() {
+            this.isShowLastLogs = !this.isShowLastLogs;
+            if (this.isShowLastLogs) {
+                const elem = document.querySelector('.container-logs');
+                elem.scrollTop = elem.scrollHeight;
+            }
+        },
     },
     template: `
         <main class="d-flex align-items-start justify-content-center mb-3">
@@ -113,8 +206,11 @@ const Tasks = {
                 :is-init-data-fetched="isInitDataFetched">
             </tasks-list-aside>
             <tasks-table
+                @change-scroll-logs="setShowLastLogs"
                 :selected-task="selectedTask"
                 :session="session"
+                :is-show-last-logs="isShowLastLogs"
+                :tags_mapper="tags_mapper"
                 :task-info="taskInfo">
             </tasks-table>
             <create-task-modal
@@ -139,6 +235,7 @@ const Tasks = {
                 @delete-task="deleteTask">
             </tasks-confirm-modal>
             <tasks-run-task-modal
+                @run-task="runTask"
                 :selected-task="selectedTask">
                 <slot name='test_parameters_run'></slot>
             </tasks-run-task-modal>
