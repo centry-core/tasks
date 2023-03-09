@@ -104,7 +104,6 @@ def write_task_run_logs_to_minio_bucket(project_id, task, task_name, project):
 
         if response.ok:
             results = response.json()
-            log.info(results)
             enc = 'utf-8'
             file_output = BytesIO()
 

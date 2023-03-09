@@ -55,7 +55,6 @@ class API(Resource):
 
     def post(self, project_id: int):
         data = request.json
-        logging.info(f'task result {data}')
         task_result = create_task_result(project_id, data)
         resp = {"message": "Created", "code": 201, "task_id": task_result.id}
         return make_response(resp, resp.get('code', 201))
