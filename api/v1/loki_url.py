@@ -20,7 +20,7 @@ class API(Resource):
         task_id = request.args.get("task_id", None)
         task_result_id = request.args.get("task_result_id", None)
 
-        if not task_id or not task_result_id:
+        if not task_id and not task_result_id:
             return {"message": "task_id and task_result_id is not provided."}, 404
 
         task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
