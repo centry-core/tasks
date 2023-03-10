@@ -48,6 +48,23 @@ const Tasks = {
         }
     },
     methods: {
+        prefetchLogsByResultId() {
+            this.fetchWebsocketURL(this.selectedTask.task_id).then(data => {
+                this.$emit('run-task', data)
+            })
+        },
+        async fetchWebsocketURL(taskId) { // возвращает последний запущеный
+            const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${taskId}`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
+        async fetchTaskStatus(taskId) {
+            const res = await fetch (`/api/v1/task_status/${getSelectedProjectId()}/?task_id=${taskId}`,{
+                method: 'GET',
+            })
+            return res.json();
+        },
         setBucketEvent(taskList, resultList) {
             const vm = this;
             $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function (event) {

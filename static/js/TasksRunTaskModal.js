@@ -32,30 +32,30 @@ const TasksRunTaskModal = {
             this.runTask().then(res => {
                 $('#RunTaskModal').modal('hide');
                 // TODO duplicate logic for get logs if task is running
-                this.fetchLogs(this.selectedTask.task_id).then(data => {
+                this.fetchWebsocketURL(this.selectedTask.task_id).then(data => {
                     this.$emit('run-task', data)
                 })
             })
         },
-        async fetchLogs(taskId) {
+        async fetchWebsocketURL(taskId) {
             const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${taskId}`,{
                 method: 'GET',
             })
             return res.json();
         },
         async runTask() {
-            // const params = [
-            //         { name: "user", default: "user", type: "string", description: "", action: "" },
-            //         { name: "password", default: "password", type: "string", description: "", action: "" },
-            //         { name: "vhost", default: "carrier", type: "string", description: "", action: "" }
-            //     ]
+            const params = [
+                    { name: "user", default: "user", type: "string", description: "", action: "" },
+                    { name: "password", default: "password", type: "string", description: "", action: "" },
+                    { name: "vhost", default: "carrier", type: "string", description: "", action: "" }
+                ]
             const resp = await fetch(`/api/v1/tasks/run_task/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body:  JSON.stringify(this.test_parameters.get()),
-                // body:  JSON.stringify(params),
+                // body:  JSON.stringify(this.test_parameters.get()),
+                body:  JSON.stringify(params),
             })
             return resp.json()
         },
