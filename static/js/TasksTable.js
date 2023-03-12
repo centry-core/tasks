@@ -22,7 +22,6 @@ const TasksTable = {
             this.fetchTasksResult(newValue.task_id)
                 .then(data => {
                     const taskData = Object.values(data.rows).flat().map(item => ({...item, task_name: this.selectedTask.task_name }));
-                    console.log(taskData)
                     const barDatasets = [{
                             data: [],
                             borderWidth: 1,
@@ -65,7 +64,6 @@ const TasksTable = {
     },
     methods: {
         async fetchTasksResult(taskId) {
-            // TODO rewrite session
             const res = await fetch (`/api/v1/tasks/results/${getSelectedProjectId()}/${taskId}`,{
                 method: 'GET',
             })

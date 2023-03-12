@@ -38,8 +38,13 @@ const Tasks = {
             if (data.rows.length > 0) {
                 vm.selectedTask = data.rows[0];
                 this.selectFirstTask();
+                fetch (`/api/v1/api/v1/task_status/${getSelectedProjectId()}`,{
+                    method: 'GET',
+                }).then(res => {
+                    console.log(res)
+                })
             }
-        })
+        });
     },
     watch: {
         selectedTask(newValue) {
@@ -48,6 +53,8 @@ const Tasks = {
         }
     },
     methods: {
+        // GET -> api/v1/task_status/<project_id>/<task_result_id> - для получения статуса у таска
+        // GET -> api/v1/loki_url/<project_id>/?task_id=<>&task_result_id=<> - для получения конкретного лога
         prefetchLogsByResultId() {
             this.fetchWebsocketURL(this.selectedTask.task_id).then(data => {
                 this.$emit('run-task', data)
