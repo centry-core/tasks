@@ -43,14 +43,13 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
     return {"message", "ok"}
 
 
-def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
+def run_task(project_id, event, task_id=None, queue_name=None, get_task_result_id=False) -> dict:
     if not queue_name:
         queue_name = c.RABBIT_QUEUE_NAME
     secrets = secrets_tools.get_project_hidden_secrets(project_id=project_id)
     secrets.update(secrets_tools.get_project_secrets(project_id=project_id))
     task_id = task_id if task_id else secrets["control_tower_id"]
     task = Task.query.filter(and_(Task.task_id == task_id)).first()
-    task_result_id = TaskResults.query.filter_by(task_id=task.task_id).first().task_result_id
     check_task_quota(task)
     arbiter = get_arbiter()
     task_kwargs = {
@@ -66,7 +65,11 @@ def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
     arbiter.apply("execute_lambda", queue=queue_name, task_kwargs=task_kwargs)
     arbiter.close()
     rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=task.project_id)
-    return {"message": "Accepted", "code": 200, "task_result_id": task_result_id}
+
+    if get_task_result_id:
+        task_result_id = TaskResults.query.filter_by(task_id=task.task_id).first().task_result_id
+        return {"message": "Accepted", "code": 200, "task_result_id": task_result_id}
+    return {"message": "Accepted", "code": 200, "task_id": task_id}
 
 
 def create_task_result(project_id: int,  data: dict):

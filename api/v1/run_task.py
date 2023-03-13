@@ -35,7 +35,7 @@ class API(Resource):
         resp = request.json
         event = [{row['name']: row['default'] for row in resp}]
         logging.info(f'event {event}')
-        resp = run_task(project.id, event, task.task_id)
+        resp = run_task(project.id, event, task.task_id, get_task_result_id=True)
         return resp, resp.get('code', 200)
 
     def put(self, project_id: int, task_id: str):

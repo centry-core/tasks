@@ -7,16 +7,16 @@ from ...models.results import TaskResults
 
 class API(Resource):
     url_params = [
-        '<int:project_id>',
+        '<int:project_id>/<string:task_id>',
     ]
 
     def __init__(self, module):
         self.module = module
 
-    def get(self, project_id: int):
+    def get(self, project_id: int, task_id: str):
         INPROGRESS = "In progress..."
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         logging.info(project, project.id)
-        if TaskResults.query.filter_by(project_id=project.id, task_status=INPROGRESS).first():
+        if TaskResults.query.filter_by(project_id=project.id, task_id=task_id, task_status=INPROGRESS).first():
             return {"code": 200, "IN_PROGRESS": True}
         return {"code": 200, "IN_PROGRESS": False}
