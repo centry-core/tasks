@@ -29,6 +29,7 @@ class API(Resource):
         for row in task_result:
             task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
             data = row.to_json()
+            data["timestamp"] = row.ts
             data["ts"] = api_tools.format_date(datetime.fromtimestamp(row.ts)) if row.ts else None
             if task_stats := data.pop("task_stats", None):
                 usage_delta = (
@@ -67,7 +68,6 @@ class API(Resource):
         if not task_result:
             return {"message": "No such task_result_id in selected in project"}, 404
 
-        task_result.ts = data.get('ts')
         task_result.task_duration = data.get('task_duration')
         task_result.log = data.get('log')
         task_result.results = data.get('results')
