@@ -1,5 +1,7 @@
-window.tasksBarChart = null;
-window.tasksLineChart = null;
+window.taskCharts = {
+    line: null,
+    bar: null,
+}
 
 const chartLineScales = {
     cpu: {

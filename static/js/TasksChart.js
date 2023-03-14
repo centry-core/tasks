@@ -11,7 +11,7 @@ const TasksChart = {
                 },
                 options: this.options,
             });
-            window.tasksBarChart = chart
+            window.taskCharts[this.type] = chart;
         }
     },
     template: `

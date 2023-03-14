@@ -1,5 +1,4 @@
 const Tasks = {
-    delimiters: ['[[', ']]'],
     props: ['session', 'locations', 'runtimes'],
     components: {
         'create-task-modal': TasksCreateModal,
@@ -26,23 +25,38 @@ const Tasks = {
             checkedBucketsList: [],
             tags_mapper: [],
             isShowLastLogs: true,
+            runningTasks: new Map(),
+            checkingTimeInterval: null,
+            selectedResultId: null,
+            websocket: null,
+            isLoadingWebsocket: true,
+            isLoadingRun: false,
+        }
+    },
+    computed: {
+        isFilledRunningTasks() {
+            return !!this.runningTasks.size;
+        },
+        runningTasksList() {
+            const resultIds = this.runningTasks.get(this.selectedTask.task_id);
+            return resultIds ? [...resultIds] : []
         }
     },
     mounted() {
         const vm = this;
-        this.fetchTasks().then(data => {
+        ApiFetchTasks().then(data => {
             $("#task-aside-table").bootstrapTable('append', data.rows);
             this.setBucketEvent(data.rows);
             this.tasksCount = data.rows.length;
             this.isInitDataFetched = true;
             if (data.rows.length > 0) {
                 vm.selectedTask = data.rows[0];
+                this.checkTaskStatus(vm.selectedTask.task_id);
+                // if (vm.taskResultsIds.size > 0) {
+                //     vm.taskResultsIds.set(vm.selectedTask, [...vm.taskResultsIds.get(vm.selectedTask), 'result_task_id'])
+                // }
+                // vm.taskResultsIds.set(vm.selectedTask.task_id, ['result_task_id'])
                 this.selectFirstTask();
-                fetch (`/api/v1/api/v1/task_status/${getSelectedProjectId()}`,{
-                    method: 'GET',
-                }).then(res => {
-                    console.log(res)
-                })
             }
         });
     },
@@ -50,27 +64,33 @@ const Tasks = {
         selectedTask(newValue) {
             $('#tableLogs').empty();
             this.tags_mapper = [];
+            if (this.checkingTimeInterval) {
+                this.stopCheckStatus();
+            }
+            this.runningTasks.clear();
+            this.checkTaskStatus(this.selectedTask.task_id);
+            if (this.websocket) {
+                this.closeWebsocket();
+            }
         }
     },
     methods: {
-        // GET -> api/v1/task_status/<project_id>/<task_result_id> - для получения статуса у таска
-        // GET -> api/v1/loki_url/<project_id>/?task_id=<>&task_result_id=<> - для получения конкретного лога
-        prefetchLogsByResultId() {
-            this.fetchWebsocketURL(this.selectedTask.task_id).then(data => {
-                this.$emit('run-task', data)
-            })
+        closeWebsocket() {
+            this.websocket.close();
+            this.websocket = null;
+            this.isLoadingWebsocket = true;
+            this.tags_mapper = [];
+            $('#tableLogs').empty();
         },
-        async fetchWebsocketURL(taskId) { // возвращает последний запущеный
-            const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${taskId}`,{
-                method: 'GET',
+        fetchWebsocketURLByResultId(resultId) {
+            console.log(resultId)
+            if (this.websocket) {
+                this.closeWebsocket();
+            }
+            this.isLoadingWebsocket = true;
+            ApiWebsocketURLByResultId(this.selectedTask.task_id, resultId).then(({ websocket_url }) => {
+                this.init_websocket(websocket_url)
             })
-            return res.json();
-        },
-        async fetchTaskStatus(taskId) {
-            const res = await fetch (`/api/v1/task_status/${getSelectedProjectId()}/?task_id=${taskId}`,{
-                method: 'GET',
-            })
-            return res.json();
         },
         setBucketEvent(taskList, resultList) {
             const vm = this;
@@ -79,17 +99,6 @@ const Tasks = {
                 vm.selectedTask = taskList.find(row => row.task_id === selectedUniqId);
                 $(this).addClass('highlight').siblings().removeClass('highlight');
             });
-        },
-        async fetchTasks() {
-            const res = await fetch(`/api/v1/tasks/tasks/${this.session}`, {
-                method: 'GET',
-            })
-            return res.json();
-        },
-        async deleteTaskApi() {
-            const res = await fetch(`/api/v1/tasks/tasks/${this.session}/${this.selectedTask.task_id}`, {
-                method: 'DELETE',
-            })
         },
         selectFirstTask() {
             $('#task-aside-table tbody tr').each(function (i, item) {
@@ -100,7 +109,7 @@ const Tasks = {
             })
         },
         updateTasksList(taskId = null) {
-            this.fetchTasks().then(data => {
+            ApiFetchTasks().then(data => {
                 $("#task-aside-table").bootstrapTable('load', data.rows);
                 this.setBucketEvent(data.rows);
                 this.tasksCount = data.rows.length;
@@ -126,15 +135,48 @@ const Tasks = {
         },
         deleteTask() {
             this.loadingDelete = true;
-            this.deleteTaskApi().then(() => {
+            ApiDeleteTask(this.selectedTask.task_id).then(() => {
                 showNotify('SUCCESS', 'Task delete.');
                 this.loadingDelete = false;
                 this.showConfirm = !this.showConfirm;
                 this.updateTasksList();
             })
         },
-        runTask(payload) {
-            this.init_websocket(payload.websocket_url)
+        runTask(resultId) {
+            if (this.checkingTimeInterval) {
+                this.stopCheckStatus();
+            }
+            if (this.websocket) this.closeWebsocket();
+            this.checkTaskStatus(this.selectedTask.task_id, true);
+        },
+        checkTaskStatus(taskId, closeModal = false) {
+            this.checkingTimeInterval = setInterval(() => {
+                ApiCheckStatus(this.selectedTask.task_id).then(data => {
+                    if ($('#RunTaskModal').is(":visible") && closeModal) {
+                        $('#RunTaskModal').modal('hide');
+                        this.isLoadingRun = false;
+                    }
+                    if (data.IN_PROGRESS) {
+                        if (!this.websocket) {
+                            this.selectedResultId = data.task_result_ids.slice(-1);
+                            this.fetchWebsocketURLByResultId(this.selectedResultId);
+                        }
+                        this.runningTasks.set(taskId, data.task_result_ids);
+                    } else {
+                        const logsData = $('#logs-table').bootstrapTable('getData');
+                        if (logsData.length > 0) {
+                            this.selectedResultId = logsData.sort((a,b) => b.id - a.id)[0].task_result_id;
+                            this.fetchWebsocketURLByResultId(this.selectedResultId);
+                        }
+                        this.stopCheckStatus();
+                        this.runningTasks.set(taskId, []);
+                    }
+                });
+            }, 5000)
+        },
+        stopCheckStatus() {
+            clearInterval(this.checkingTimeInterval);
+            this.checkingTimeInterval = null;
         },
         init_websocket(websocketURL) {
             this.websocket = new WebSocket(websocketURL)
@@ -144,7 +186,7 @@ const Tasks = {
             this.websocket.onerror = this.on_websocket_error
         },
         on_websocket_open(message) {
-            // console.log(message)
+            this.isLoadingWebsocket = false;
         },
         on_websocket_message(message) {
             if (message.type !== 'message') {
@@ -177,7 +219,6 @@ const Tasks = {
 
             data.streams.forEach((stream_item, streamIndex) => {
                 stream_item.values.forEach((message_item, messageIndex) => {
-                    console.log(message_item[1])
                     const timestamp = `<td>${this.normalizeDate(message_item)}</td>`;
 
                     const indexColor = this.tags_mapper.indexOf(stream_item.stream.hostname);
@@ -231,7 +272,11 @@ const Tasks = {
             </tasks-list-aside>
             <tasks-table
                 @change-scroll-logs="setShowLastLogs"
+                @select-result-id="fetchWebsocketURLByResultId"
+                :is-loading-websocket="isLoadingWebsocket"
                 :selected-task="selectedTask"
+                :is-filled-running-tasks="isFilledRunningTasks"
+                :running-tasks-list="runningTasksList"
                 :session="session"
                 :is-show-last-logs="isShowLastLogs"
                 :tags_mapper="tags_mapper"
@@ -260,6 +305,8 @@ const Tasks = {
             </tasks-confirm-modal>
             <tasks-run-task-modal
                 @run-task="runTask"
+                @is-loading="isLoadingRun = true"
+                :is-loading-run="isLoadingRun"
                 :selected-task="selectedTask">
                 <slot name='test_parameters_run'></slot>
             </tasks-run-task-modal>
