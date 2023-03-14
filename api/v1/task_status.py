@@ -17,6 +17,8 @@ class API(Resource):
         INPROGRESS = "In progress..."
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         logging.info(project, project.id)
-        if TaskResults.query.filter_by(project_id=project.id, task_id=task_id, task_status=INPROGRESS).first():
-            return {"code": 200, "IN_PROGRESS": True}
+        task_results_progress = TaskResults.query.filter_by(project_id=project.id, task_id=task_id, task_status=INPROGRESS).all()
+        if task_results_progress:
+            task_result_ids = [x.task_result_id for x in task_results_progress]
+            return {"code": 200, "IN_PROGRESS": True, "task_result_ids": task_result_ids}
         return {"code": 200, "IN_PROGRESS": False}
