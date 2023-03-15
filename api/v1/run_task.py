@@ -1,5 +1,3 @@
-import logging
-
 from flask import request, make_response
 from flask_restful import Resource
 

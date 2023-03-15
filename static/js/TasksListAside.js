@@ -7,7 +7,7 @@ const TasksListAside = {
     },
     computed: {
         responsiveTableHeight() {
-            return `${(window.innerHeight - 286)}px`;
+            return `${(window.innerHeight - 270)}px`;
         }
     },
     watch: {
@@ -81,7 +81,6 @@ var bucketEvents = {
     },
     "click .task_setting": function (e, value, row, index) {
         e.stopPropagation();
-        console.log('click')
         $('#UpdateTaskModal').modal('show');
     }
 }

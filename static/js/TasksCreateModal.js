@@ -154,7 +154,7 @@ const TasksCreateModal = {
                                           <label for="dropInput" class="mb-0 d-flex align-items-center justify-content-center">Drag & drop file or <span>&nbsp;browse</span></label>
                                     </div>
                                     <span v-show="previewFile" class="preview-area_item"> 
-                                        {{ previewFile }}}
+                                        {{ previewFile }}
                                         <i class="icon__16x16 icon-close__16" @click="removeFile"></i>
                                     </span>
                                 </div>

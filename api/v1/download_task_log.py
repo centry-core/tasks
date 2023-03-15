@@ -7,7 +7,6 @@ from flask_restful import Resource
 from tools import MinioClient
 
 
-
 class API(Resource):
     url_params = [
         '<int:project_id>/<string:task_name>/<string:task_result_id>',
@@ -21,7 +20,7 @@ class API(Resource):
         minio_client = MinioClient(project)
         bucket_name = str(task_name).replace("_", "").replace(" ", "").lower()
         try:
-            file = minio_client.download_file(bucket_name,  f'{task_result_id}.log')
+            file = minio_client.download_file(bucket_name, f'{task_result_id}.log')
             try:
                 return send_file(BytesIO(file), attachment_filename=file)
             except TypeError:  # new flask

@@ -1,5 +1,4 @@
 const Tasks = {
-    delimiters: ['[[', ']]'],
     props: ['session', 'locations', 'runtimes'],
     components: {
         'create-task-modal': TasksCreateModal,
@@ -11,9 +10,7 @@ const Tasks = {
     },
     data() {
         return {
-            selectedTask: {
-                task_name: null,
-            },
+            selectedTask: {},
             loadingDelete: false,
             isInitDataFetched: false,
             showConfirm: false,
@@ -26,28 +23,65 @@ const Tasks = {
             checkedBucketsList: [],
             tags_mapper: [],
             isShowLastLogs: true,
+            runningTasks: new Map(),
+            checkingTimeInterval: null,
+            selectedResultId: null,
+            websocket: null,
+            isLoadingWebsocket: false,
+            isLoadingRun: false,
+        }
+    },
+    computed: {
+        runningTasksList() {
+            const resultIds = this.runningTasks.get(this.selectedTask.task_id);
+            return resultIds ? [...resultIds] : []
         }
     },
     mounted() {
         const vm = this;
-        this.fetchTasks().then(data => {
+        ApiFetchTasks().then(data => {
             $("#task-aside-table").bootstrapTable('append', data.rows);
             this.setBucketEvent(data.rows);
             this.tasksCount = data.rows.length;
             this.isInitDataFetched = true;
             if (data.rows.length > 0) {
                 vm.selectedTask = data.rows[0];
+                this.checkTaskStatus(vm.selectedTask.task_id);
                 this.selectFirstTask();
             }
-        })
+        });
     },
     watch: {
-        selectedTask(newValue) {
+        selectedTask(newValue, oldVal) {
             $('#tableLogs').empty();
             this.tags_mapper = [];
+            this.isLoadingWebsocket = false;
+            if (this.checkingTimeInterval) {
+                this.stopCheckStatus();
+            }
+            this.runningTasks.clear();
+            if (this.websocket) {
+                this.closeWebsocket();
+            }
+            if (oldVal.task_id) this.checkTaskStatus(this.selectedTask.task_id);
         }
     },
     methods: {
+        closeWebsocket() {
+            this.websocket.close();
+            this.websocket = null;
+            this.tags_mapper = [];
+            $('#tableLogs').empty();
+        },
+        fetchWebsocketURLByResultId(resultId) {
+            if (this.websocket) {
+                this.closeWebsocket();
+            }
+            this.isLoadingWebsocket = true;
+            ApiWebsocketURLByResultId(this.selectedTask.task_id, resultId).then(({ websocket_url }) => {
+                this.init_websocket(websocket_url)
+            })
+        },
         setBucketEvent(taskList, resultList) {
             const vm = this;
             $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function (event) {
@@ -55,17 +89,6 @@ const Tasks = {
                 vm.selectedTask = taskList.find(row => row.task_id === selectedUniqId);
                 $(this).addClass('highlight').siblings().removeClass('highlight');
             });
-        },
-        async fetchTasks() {
-            const res = await fetch(`/api/v1/tasks/tasks/${this.session}`, {
-                method: 'GET',
-            })
-            return res.json();
-        },
-        async deleteTaskApi() {
-            const res = await fetch(`/api/v1/tasks/tasks/${this.session}/${this.selectedTask.task_id}`, {
-                method: 'DELETE',
-            })
         },
         selectFirstTask() {
             $('#task-aside-table tbody tr').each(function (i, item) {
@@ -76,7 +99,7 @@ const Tasks = {
             })
         },
         updateTasksList(taskId = null) {
-            this.fetchTasks().then(data => {
+            ApiFetchTasks().then(data => {
                 $("#task-aside-table").bootstrapTable('load', data.rows);
                 this.setBucketEvent(data.rows);
                 this.tasksCount = data.rows.length;
@@ -102,15 +125,52 @@ const Tasks = {
         },
         deleteTask() {
             this.loadingDelete = true;
-            this.deleteTaskApi().then(() => {
+            ApiDeleteTask(this.selectedTask.task_id).then(() => {
                 showNotify('SUCCESS', 'Task delete.');
                 this.loadingDelete = false;
                 this.showConfirm = !this.showConfirm;
                 this.updateTasksList();
             })
         },
-        runTask(payload) {
-            this.init_websocket(payload.websocket_url)
+        runTask() {
+            if (this.checkingTimeInterval) {
+                this.stopCheckStatus();
+            }
+            if (this.websocket) this.closeWebsocket();
+            this.checkTaskStatus(this.selectedTask.task_id, true);
+        },
+        checkTaskStatus(taskId, closeModal = false) {
+            if (this.checkingTimeInterval) this.stopCheckStatus();
+            ApiCheckStatus(this.selectedTask.task_id).then(data => {
+                if ($('#RunTaskModal').is(":visible") && closeModal) {
+                    $('#RunTaskModal').modal('hide');
+                    this.isLoadingRun = false;
+                }
+                if (data.IN_PROGRESS) {
+                    this.checkingTimeInterval = setTimeout(() => this.checkTaskStatus(this.selectedTask.task_id), 5000)
+                    if (!this.websocket) {
+                        this.selectedResultId = data.task_result_ids.slice(-1);
+                        this.fetchWebsocketURLByResultId(this.selectedResultId);
+                    }
+                    this.runningTasks.set(taskId, data.task_result_ids);
+                } else {
+                    ApiLastResultId(taskId).then((data) => {
+                        if (data.websocket_url) {
+                            if (this.websocket) {
+                                this.closeWebsocket();
+                            }
+                            this.isLoadingWebsocket = true;
+                            this.init_websocket(data.websocket_url);
+                            this.stopCheckStatus();
+                            this.runningTasks.set(taskId, []);
+                        }
+                    })
+                }
+            });
+        },
+        stopCheckStatus() {
+            clearTimeout(this.checkingTimeInterval)
+            this.checkingTimeInterval = null;
         },
         init_websocket(websocketURL) {
             this.websocket = new WebSocket(websocketURL)
@@ -120,7 +180,7 @@ const Tasks = {
             this.websocket.onerror = this.on_websocket_error
         },
         on_websocket_open(message) {
-            // console.log(message)
+            this.isLoadingWebsocket = false;
         },
         on_websocket_message(message) {
             if (message.type !== 'message') {
@@ -139,7 +199,6 @@ const Tasks = {
             ]
 
             const data = JSON.parse(message.data);
-
             const logsTag = data.streams.map(logTag => {
                 return logTag.stream.hostname;
             })
@@ -153,7 +212,6 @@ const Tasks = {
 
             data.streams.forEach((stream_item, streamIndex) => {
                 stream_item.values.forEach((message_item, messageIndex) => {
-                    console.log(message_item[1])
                     const timestamp = `<td>${this.normalizeDate(message_item)}</td>`;
 
                     const indexColor = this.tags_mapper.indexOf(stream_item.stream.hostname);
@@ -163,10 +221,10 @@ const Tasks = {
                     const coloredText = `<td><span class="colored-log colored-log__${log_level}">${log_level}</span></td>`
 
                     const message = message_item[1]
-
-                    const row = `<tr>${timestamp}${coloredTag}${coloredText}<td class="log-message__${streamIndex}-${messageIndex}"></td></tr>`
+                    const randomIndex = Date.now() + Math.floor(Math.random() * 100);
+                    const row = `<tr>${timestamp}${coloredTag}${coloredText}<td class="log-message__${randomIndex}"></td></tr>`
                     $('#tableLogs').append(row);
-                    $(`.log-message__${streamIndex}-${messageIndex}`).append(`<plaintext>${message}`);
+                    $(`.log-message__${randomIndex}`).append(`<plaintext>${message}`);
 
                     if (this.isShowLastLogs) this.scrollLogsToEnd();
                 })
@@ -207,7 +265,10 @@ const Tasks = {
             </tasks-list-aside>
             <tasks-table
                 @change-scroll-logs="setShowLastLogs"
+                @select-result-id="fetchWebsocketURLByResultId"
+                :is-loading-websocket="isLoadingWebsocket"
                 :selected-task="selectedTask"
+                :running-tasks-list="runningTasksList"
                 :session="session"
                 :is-show-last-logs="isShowLastLogs"
                 :tags_mapper="tags_mapper"
@@ -236,6 +297,8 @@ const Tasks = {
             </tasks-confirm-modal>
             <tasks-run-task-modal
                 @run-task="runTask"
+                @is-loading="isLoadingRun = true"
+                :is-loading-run="isLoadingRun"
                 :selected-task="selectedTask">
                 <slot name='test_parameters_run'></slot>
             </tasks-run-task-modal>

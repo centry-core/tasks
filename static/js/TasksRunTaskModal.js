@@ -1,5 +1,5 @@
 const TasksRunTaskModal = {
-    props: ['selectedTask'],
+    props: ['selectedTask', 'isLoadingRun'],
     data() {
         return {
             isLoading: false,
@@ -12,7 +12,9 @@ const TasksRunTaskModal = {
                 const taskParams = data.rows[0].task_parameters;
                 if (taskParams) {
                     vm.test_parameters.set(taskParams);
-                }
+                } else (
+                    vm.test_parameters.set([])
+                )
             })
         });
     },
@@ -29,19 +31,10 @@ const TasksRunTaskModal = {
             return res.json();
         },
         handleRunTask() {
-            this.runTask().then(res => {
-                $('#RunTaskModal').modal('hide');
-                // TODO duplicate logic for get logs if task is running
-                this.fetchLogs(this.selectedTask.task_id).then(data => {
-                    this.$emit('run-task', data)
-                })
+            this.$emit('is-loading');
+            this.runTask().then(() => {
+                this.$emit('run-task');
             })
-        },
-        async fetchLogs(taskId) {
-            const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${taskId}`,{
-                method: 'GET',
-            })
-            return res.json();
         },
         async runTask() {
             // const params = [
@@ -77,7 +70,7 @@ const TasksRunTaskModal = {
                                 <button type="button" 
                                     class="btn btn-basic d-flex align-items-center"
                                     @click="handleRunTask"
-                                    >Run<i v-if="isLoading" class="preview-loader__white ml-2"></i>
+                                    >Run<i v-if="isLoadingRun" class="preview-loader__white ml-2"></i>
                                 </button>
                             </div>
                         </div>
