@@ -1,5 +1,5 @@
 const TasksTable = {
-    props: ['selected-task', 'task-info', 'tags_mapper', 'isShowLastLogs', 'isFilledRunningTasks', 'runningTasksList', 'isLoadingWebsocket'],
+    props: ['selected-task', 'task-info', 'tags_mapper', 'isShowLastLogs', 'runningTasksList', 'isLoadingWebsocket'],
     components: {
         'tasks-chart': TasksChart,
     },
@@ -12,17 +12,18 @@ const TasksTable = {
             chartLineDatasets: [],
             chartBarOptions,
             chartLineOptions,
+            selectedResultId: null,
         }
     },
     mounted() {
         $('#selectResult').on('change', (e) => {
+            this.selectedResultId = e.target.value;
             this.$emit('select-result-id', e.target.value)
         })
     },
     watch: {
         selectedTask(newValue) {
             this.isLoading = true;
-            this.chartBarDatasets = [];
             this.labels = [];
             this.generateContent(newValue.task_id)
         },
@@ -35,11 +36,26 @@ const TasksTable = {
                 this.fetchTableData(this.selectedTask.task_id);
                 this.$nextTick(() => {
                     $('#selectResult').selectpicker('refresh');
-                    $('#selectResult').val(this.runningTasksList.slice(-1));
+                    const hasListPreviousResult = val.includes(this.selectedResultId);
+                    if (hasListPreviousResult) {
+                        $('#selectResult').val(this.selectedResultId);
+                    } else {
+                        this.selectedResultId = this.runningTasksList.slice(-1);
+                        this.$emit('select-result-id', this.selectedResultId);
+                        $('#selectResult').val(this.selectedResultId);
+                    }
                     $('#selectResult').selectpicker('refresh');
                 })
             }
             if (isListCleaned) {
+                if (Object.values(window.taskCharts).some(chart => chart !== null)) {
+                    for (const key in window.taskCharts) {
+                        window.taskCharts[key].destroy();
+                        window.taskCharts[key] = null;
+                    }
+                    this.labels = [];
+                }
+                this.isLoading = true;
                 this.generateContent(this.selectedTask.task_id)
             }
         }

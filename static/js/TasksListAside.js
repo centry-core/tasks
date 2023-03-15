@@ -81,7 +81,6 @@ var bucketEvents = {
     },
     "click .task_setting": function (e, value, row, index) {
         e.stopPropagation();
-        console.log('click')
         $('#UpdateTaskModal').modal('show');
     }
 }

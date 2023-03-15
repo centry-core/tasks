@@ -35,18 +35,18 @@ const TasksRunTaskModal = {
             })
         },
         async runTask() {
-            // const params = [
-            //         { name: "user", default: "user", type: "string", description: "", action: "" },
-            //         { name: "password", default: "password", type: "string", description: "", action: "" },
-            //         { name: "vhost", default: "carrier", type: "string", description: "", action: "" }
-            //     ]
+            const params = [
+                    { name: "user", default: "user", type: "string", description: "", action: "" },
+                    { name: "password", default: "password", type: "string", description: "", action: "" },
+                    { name: "vhost", default: "carrier", type: "string", description: "", action: "" }
+                ]
             const resp = await fetch(`/api/v1/tasks/run_task/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body:  JSON.stringify(this.test_parameters.get()),
-                // body:  JSON.stringify(params),
+                // body:  JSON.stringify(this.test_parameters.get()),
+                body:  JSON.stringify(params),
             })
             return resp.json()
         },

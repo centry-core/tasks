@@ -10,9 +10,7 @@ const Tasks = {
     },
     data() {
         return {
-            selectedTask: {
-                task_name: null,
-            },
+            selectedTask: {},
             loadingDelete: false,
             isInitDataFetched: false,
             showConfirm: false,
@@ -29,14 +27,11 @@ const Tasks = {
             checkingTimeInterval: null,
             selectedResultId: null,
             websocket: null,
-            isLoadingWebsocket: true,
+            isLoadingWebsocket: false,
             isLoadingRun: false,
         }
     },
     computed: {
-        isFilledRunningTasks() {
-            return !!this.runningTasks.size;
-        },
         runningTasksList() {
             const resultIds = this.runningTasks.get(this.selectedTask.task_id);
             return resultIds ? [...resultIds] : []
@@ -52,38 +47,33 @@ const Tasks = {
             if (data.rows.length > 0) {
                 vm.selectedTask = data.rows[0];
                 this.checkTaskStatus(vm.selectedTask.task_id);
-                // if (vm.taskResultsIds.size > 0) {
-                //     vm.taskResultsIds.set(vm.selectedTask, [...vm.taskResultsIds.get(vm.selectedTask), 'result_task_id'])
-                // }
-                // vm.taskResultsIds.set(vm.selectedTask.task_id, ['result_task_id'])
                 this.selectFirstTask();
             }
         });
     },
     watch: {
-        selectedTask(newValue) {
+        selectedTask(newValue, oldVal) {
             $('#tableLogs').empty();
             this.tags_mapper = [];
+            this.isLoadingWebsocket = false;
             if (this.checkingTimeInterval) {
                 this.stopCheckStatus();
             }
             this.runningTasks.clear();
-            this.checkTaskStatus(this.selectedTask.task_id);
             if (this.websocket) {
                 this.closeWebsocket();
             }
+            if (oldVal.task_id) this.checkTaskStatus(this.selectedTask.task_id);
         }
     },
     methods: {
         closeWebsocket() {
             this.websocket.close();
             this.websocket = null;
-            this.isLoadingWebsocket = true;
             this.tags_mapper = [];
             $('#tableLogs').empty();
         },
         fetchWebsocketURLByResultId(resultId) {
-            console.log(resultId)
             if (this.websocket) {
                 this.closeWebsocket();
             }
@@ -150,32 +140,38 @@ const Tasks = {
             this.checkTaskStatus(this.selectedTask.task_id, true);
         },
         checkTaskStatus(taskId, closeModal = false) {
-            this.checkingTimeInterval = setInterval(() => {
-                ApiCheckStatus(this.selectedTask.task_id).then(data => {
-                    if ($('#RunTaskModal').is(":visible") && closeModal) {
-                        $('#RunTaskModal').modal('hide');
-                        this.isLoadingRun = false;
+            if (this.checkingTimeInterval) this.stopCheckStatus();
+            ApiCheckStatus(this.selectedTask.task_id).then(data => {
+                if ($('#RunTaskModal').is(":visible") && closeModal) {
+                    $('#RunTaskModal').modal('hide');
+                    this.isLoadingRun = false;
+                }
+                if (data.IN_PROGRESS) {
+                    this.checkingTimeInterval = setTimeout(() => this.checkTaskStatus(this.selectedTask.task_id), 5000)
+                    if (!this.websocket) {
+                        this.selectedResultId = data.task_result_ids.slice(-1);
+                        this.fetchWebsocketURLByResultId(this.selectedResultId);
                     }
-                    if (data.IN_PROGRESS) {
-                        if (!this.websocket) {
-                            this.selectedResultId = data.task_result_ids.slice(-1);
-                            this.fetchWebsocketURLByResultId(this.selectedResultId);
-                        }
-                        this.runningTasks.set(taskId, data.task_result_ids);
-                    } else {
-                        const logsData = $('#logs-table').bootstrapTable('getData');
-                        if (logsData.length > 0) {
-                            this.selectedResultId = logsData.sort((a,b) => b.id - a.id)[0].task_result_id;
-                            this.fetchWebsocketURLByResultId(this.selectedResultId);
-                        }
-                        this.stopCheckStatus();
-                        this.runningTasks.set(taskId, []);
-                    }
-                });
-            }, 5000)
+                    this.runningTasks.set(taskId, data.task_result_ids);
+                } else {
+                    // TODO race requests
+                    ApiTasksResult(taskId)
+                        .then(logs => {
+                            const taskData = Object.values(logs.rows)
+                                .flat()
+                                .sort((a,b) => b.id - a.id);
+                            if (taskData.length > 0) {
+                                this.selectedResultId = taskData[0].task_result_id;
+                                this.fetchWebsocketURLByResultId(this.selectedResultId);
+                            }
+                            this.stopCheckStatus();
+                            this.runningTasks.set(taskId, []);
+                        })
+                }
+            });
         },
         stopCheckStatus() {
-            clearInterval(this.checkingTimeInterval);
+            clearTimeout(this.checkingTimeInterval)
             this.checkingTimeInterval = null;
         },
         init_websocket(websocketURL) {
@@ -275,7 +271,6 @@ const Tasks = {
                 @select-result-id="fetchWebsocketURLByResultId"
                 :is-loading-websocket="isLoadingWebsocket"
                 :selected-task="selectedTask"
-                :is-filled-running-tasks="isFilledRunningTasks"
                 :running-tasks-list="runningTasksList"
                 :session="session"
                 :is-show-last-logs="isShowLastLogs"
