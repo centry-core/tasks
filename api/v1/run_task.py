@@ -37,7 +37,7 @@ class API(Resource):
         event = [{row['name']: row['default'] for row in resp}]
         logging.info(f'event {event}')
         resp = run_task(project.id, event, task.task_id)
-        task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(TaskResults.id.desc()).first_or_404().task_result_id
+        task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(TaskResults.id.desc()).first()
         if resp['code'] == 200 and task_result_id:
             task_result_id.task_status = "In progress..."
             task_result_id.commit()
