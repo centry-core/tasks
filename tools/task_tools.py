@@ -43,7 +43,7 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
     return {"message", "ok"}
 
 
-def run_task(project_id, event, task_id=None, queue_name=None, get_task_result_id=False) -> dict:
+def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
     if not queue_name:
         queue_name = c.RABBIT_QUEUE_NAME
     secrets = secrets_tools.get_project_hidden_secrets(project_id=project_id)
@@ -66,9 +66,6 @@ def run_task(project_id, event, task_id=None, queue_name=None, get_task_result_i
     arbiter.close()
     rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=task.project_id)
 
-    if get_task_result_id:
-        task_result_id = TaskResults.query.filter_by(task_id=task.task_id).first().task_result_id
-        return {"message": "Accepted", "code": 200, "task_result_id": task_result_id}
     return {"message": "Accepted", "code": 200, "task_id": task_id}
 
 
