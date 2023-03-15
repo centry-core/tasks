@@ -21,6 +21,12 @@ const ApiWebsocketURLByResultId = async (taskId, resultId) => {
     })
     return res.json();
 }
+const ApiLastResultId = async (taskId) => {
+    const res = await fetch (`/api/v1/tasks/loki_url/${getSelectedProjectId()}/?task_id=${taskId}`,{
+        method: 'GET',
+    })
+    return res.json();
+}
 const ApiTasksResult = async (taskId) => {
     const res = await fetch (`/api/v1/tasks/results/${getSelectedProjectId()}/${taskId}`,{
         method: 'GET',

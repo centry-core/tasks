@@ -7,7 +7,7 @@ const TasksListAside = {
     },
     computed: {
         responsiveTableHeight() {
-            return `${(window.innerHeight - 286)}px`;
+            return `${(window.innerHeight - 270)}px`;
         }
     },
     watch: {

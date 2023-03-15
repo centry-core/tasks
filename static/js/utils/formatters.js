@@ -15,17 +15,21 @@ var report_formatters = {
 var filesFormatter = {
     actions(value, row, index) {
         const url = row.project_id ? `/api/v1/tasks/download_task_log/${row.project_id}/${row.task_name}/${row.task_result_id}` : '';
-        return `
-        <div class="d-flex justify-content-end">
-            <div class="dropdown_multilevel">
-                <button class="btn btn-default btn-xs btn-table btn-icon__xs" type="button">
-                    <a download href="${url}"
-                        class="d-flex align-items-center">
-                        <i class="icon__18x18 icon-download"></i>
-                    </a>
-                </button>
-            </div>
-        </div>
-    `
+        if (row.task_status !== 'In progress...') {
+            return `
+                <div class="d-flex justify-content-end">
+                    <div class="dropdown_multilevel">
+                        <button class="btn btn-default btn-xs btn-table btn-icon__xs" type="button">
+                            <a download href="${url}"
+                                class="d-flex align-items-center">
+                                <i class="icon__18x18 icon-download"></i>
+                            </a>
+                        </button>
+                    </div>
+                </div>
+        `
+        } else {
+            return ''
+        }
     }
 }

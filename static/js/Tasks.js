@@ -132,7 +132,7 @@ const Tasks = {
                 this.updateTasksList();
             })
         },
-        runTask(resultId) {
+        runTask() {
             if (this.checkingTimeInterval) {
                 this.stopCheckStatus();
             }
@@ -154,19 +154,17 @@ const Tasks = {
                     }
                     this.runningTasks.set(taskId, data.task_result_ids);
                 } else {
-                    // TODO race requests
-                    ApiTasksResult(taskId)
-                        .then(logs => {
-                            const taskData = Object.values(logs.rows)
-                                .flat()
-                                .sort((a,b) => b.id - a.id);
-                            if (taskData.length > 0) {
-                                this.selectedResultId = taskData[0].task_result_id;
-                                this.fetchWebsocketURLByResultId(this.selectedResultId);
+                    ApiLastResultId(taskId).then((data) => {
+                        if (data.websocket_url) {
+                            if (this.websocket) {
+                                this.closeWebsocket();
                             }
+                            this.isLoadingWebsocket = true;
+                            this.init_websocket(data.websocket_url);
                             this.stopCheckStatus();
                             this.runningTasks.set(taskId, []);
-                        })
+                        }
+                    })
                 }
             });
         },
@@ -201,7 +199,6 @@ const Tasks = {
             ]
 
             const data = JSON.parse(message.data);
-
             const logsTag = data.streams.map(logTag => {
                 return logTag.stream.hostname;
             })
@@ -224,10 +221,10 @@ const Tasks = {
                     const coloredText = `<td><span class="colored-log colored-log__${log_level}">${log_level}</span></td>`
 
                     const message = message_item[1]
-
-                    const row = `<tr>${timestamp}${coloredTag}${coloredText}<td class="log-message__${streamIndex}-${messageIndex}"></td></tr>`
+                    const randomIndex = Date.now() + Math.floor(Math.random() * 100);
+                    const row = `<tr>${timestamp}${coloredTag}${coloredText}<td class="log-message__${randomIndex}"></td></tr>`
                     $('#tableLogs').append(row);
-                    $(`.log-message__${streamIndex}-${messageIndex}`).append(`<plaintext>${message}`);
+                    $(`.log-message__${randomIndex}`).append(`<plaintext>${message}`);
 
                     if (this.isShowLastLogs) this.scrollLogsToEnd();
                 })

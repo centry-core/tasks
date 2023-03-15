@@ -98,7 +98,7 @@ const TasksTable = {
                     ];
                     $('#logs-table').bootstrapTable('load', taskData);
                     taskData.forEach(result => {
-                        const ts = result.ts ?? '14.03.2023 16:31';
+                        const ts = result.ts;
                         this.labels.push(ts);
                         const memory_usage = result.task_stats?.memory_usage ? Number(result.task_stats?.memory_usage.substring(0, result.task_stats?.memory_usage.length - 1)) : 0;
                         const cpu_usage = result.task_stats?.cpu_usage ? result.task_stats?.cpu_usage : 0;
