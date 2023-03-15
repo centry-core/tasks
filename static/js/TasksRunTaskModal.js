@@ -12,7 +12,9 @@ const TasksRunTaskModal = {
                 const taskParams = data.rows[0].task_parameters;
                 if (taskParams) {
                     vm.test_parameters.set(taskParams);
-                }
+                } else (
+                    vm.test_parameters.set([])
+                )
             })
         });
     },
