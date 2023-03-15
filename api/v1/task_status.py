@@ -1,5 +1,3 @@
-import logging
-
 from flask_restful import Resource
 
 from ...models.results import TaskResults
