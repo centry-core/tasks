@@ -1,10 +1,7 @@
-import logging
-
 from flask import request, make_response
 from flask_restful import Resource
 
 from ...models.tasks import Task
-from ...models.results import TaskResults
 from ...tools.task_tools import run_task
 
 from tools import secrets_tools
@@ -35,12 +32,7 @@ class API(Resource):
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
         resp = request.json
         event = [{row['name']: row['default'] for row in resp}]
-        logging.info(f'event {event}')
         resp = run_task(project.id, event, task.task_id)
-        task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(TaskResults.id.desc()).first()
-        if resp['code'] == 200 and task_result_id:
-            task_result_id.task_status = "In progress..."
-            task_result_id.commit()
         return resp, resp.get('code', 200)
 
     def put(self, project_id: int, task_id: str):
