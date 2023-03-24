@@ -1,11 +1,12 @@
-from flask import request, make_response
+from flask import request
 from flask_restful import Resource
 
 from ...models.tasks import Task
 from ...models.results import TaskResults
 from ...tools.task_tools import run_task
 
-from tools import secrets_tools
+from tools import VaultClient
+from pylon.core.tools import log
 
 
 class API(Resource):
@@ -24,9 +25,10 @@ class API(Resource):
         # args = self.get_parser.parse_args(strict=False)
         args = request.args
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
+
         if args.get("exec"):
-            return secrets_tools.unsecret(
-                value=task.to_json(), project_id=project_id)
+            vault_client = VaultClient.from_project(project)
+            return vault_client.unsecret(task.to_json())
         return task.to_json(), 200
 
     def post(self, project_id: int, task_id: str):

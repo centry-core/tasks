@@ -10,7 +10,7 @@ from arbiter import Arbiter
 
 from ..models.tasks import Task
 from ..models.results import TaskResults
-from tools import constants as c, api_tools, rpc_tools, data_tools, secrets_tools, MinioClient
+from tools import constants as c, api_tools, rpc_tools, data_tools, MinioClient, VaultClient
 from pylon.core.tools import log
 
 
@@ -43,24 +43,20 @@ def check_task_quota(task, project_id=None, quota='tasks_executions'):
     return {"message", "ok"}
 
 
-def run_task(project_id, event, task_id=None, queue_name=None) -> dict:
+def run_task(project_id: int, event, task_id=None, queue_name=None) -> dict:
     if not queue_name:
         queue_name = c.RABBIT_QUEUE_NAME
-    secrets = secrets_tools.get_project_hidden_secrets(project_id=project_id)
-    secrets.update(secrets_tools.get_project_secrets(project_id=project_id))
+    vault_client = VaultClient.from_project(project_id)
+    secrets = vault_client.get_all_secrets()
     task_id = task_id if task_id else secrets["control_tower_id"]
     task = Task.query.filter(and_(Task.task_id == task_id)).first()
     check_task_quota(task)
     arbiter = get_arbiter()
     task_kwargs = {
-        "task": secrets_tools.unsecret(value=task.to_json(), secrets=secrets, project_id=project_id),
-        "event": secrets_tools.unsecret(value=event, secrets=secrets, project_id=project_id),
-        "galloper_url": secrets_tools.unsecret(
-            value="{{secret.galloper_url}}",
-            secrets=secrets,
-            project_id=task.project_id
-        ),
-        "token": secrets_tools.unsecret(value="{{secret.auth_token}}", secrets=secrets, project_id=task.project_id)
+        "task": vault_client.unsecret(value=task.to_json(), secrets=secrets),
+        "event": vault_client.unsecret(value=event, secrets=secrets),
+        "galloper_url": vault_client.unsecret(value="{{secret.galloper_url}}", secrets=secrets),
+        "token": vault_client.unsecret(value="{{secret.auth_token}}", secrets=secrets)
     }
     arbiter.apply("execute_lambda", queue=queue_name, task_kwargs=task_kwargs)
     arbiter.close()

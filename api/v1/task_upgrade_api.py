@@ -10,7 +10,7 @@ from sqlalchemy import and_
 
 from ...models.tasks import Task
 
-from tools import data_tools, constants as c, api_tools, secrets_tools
+from tools import data_tools, constants as c, api_tools, VaultClient
 
 
 class API(Resource):
@@ -40,7 +40,8 @@ class API(Resource):
         args = request.args
         if args['name'] not in ['post_processor', 'control_tower', 'all']:
             return {"message": "You shall not pass", "code": 400}, 400
-        secrets = secrets_tools.get_project_hidden_secrets(project_id=project.id)
+        vault_client = VaultClient.from_project(project)
+        secrets = vault_client.get_project_hidden_secrets()
         project_secrets = {}
         if args['name'] == 'post_processor':
             self.create_pp_task(project)
@@ -62,14 +63,8 @@ class API(Resource):
             secrets["rabbit_host"] = c.APP_IP
             secrets["rabbit_user"] = c.RABBIT_USER
             secrets["rabbit_password"] = c.RABBIT_PASSWORD
-            secrets = secrets_tools.set_project_secrets(
-                project_id=project.id,
-                secrets=project_secrets
-            )
+            vault_client.set_project_secrets(project_secrets)
         else:
-            return make_response({"message": "go away", "code": 400}, 400)
-        secrets_tools.set_project_hidden_secrets(
-            project_id=project.id,
-            secrets=secrets
-        )
-        return make_response({"message": "Done", "code": 200}, 200)
+            return {"message": "go away", "code": 400}, 400
+        vault_client.set_project_hidden_secrets(secrets)
+        return {"message": "Done", "code": 200}, 200
