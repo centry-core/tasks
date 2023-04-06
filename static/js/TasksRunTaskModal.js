@@ -25,7 +25,8 @@ const TasksRunTaskModal = {
     },
     methods: {
         async fetchParameters() {
-            const res = await fetch (`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}?get_parameters=true`,{
+            const api_url = this.$root.build_api_url('tasks', 'tasks')
+            const res = await fetch (`${api_url}/${getSelectedProjectId()}/${this.selectedTask.task_id}?get_parameters=true`,{
                 method: 'GET',
             })
             return res.json();
@@ -42,7 +43,8 @@ const TasksRunTaskModal = {
             //         { name: "password", default: "password", type: "string", description: "", action: "" },
             //         { name: "vhost", default: "carrier", type: "string", description: "", action: "" }
             //     ]
-            const resp = await fetch(`/api/v1/tasks/run_task/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
+            const api_url = this.$root.build_api_url('tasks', 'run_task')
+            const resp = await fetch(`${api_url}/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/json",

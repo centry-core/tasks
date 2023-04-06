@@ -71,7 +71,8 @@ const TasksCreateModal = {
             return file
         },
         async createTask(data){
-            const resp = await fetch(`/api/v1/tasks/tasks/${getSelectedProjectId()}`,{
+            const api_url = this.$root.build_api_url('tasks', 'tasks')
+            const resp = await fetch(`${api_url}/${getSelectedProjectId()}`,{
                 method: 'POST',
                 body: data,
             })

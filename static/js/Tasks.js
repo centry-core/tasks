@@ -1,12 +1,12 @@
 const Tasks = {
-    props: ['session', 'locations', 'runtimes'],
+    props: ['locations', 'runtimes'],
     components: {
         'create-task-modal': TasksCreateModal,
         'tasks-update-modal': TasksUpdateModal,
         'tasks-list-aside': TasksListAside,
         'tasks-table': TasksTable,
-        'tasks-confirm-modal' : TasksConfirmModal,
-        'tasks-run-task-modal' : TasksRunTaskModal,
+        'tasks-confirm-modal': TasksConfirmModal,
+        'tasks-run-task-modal': TasksRunTaskModal,
     },
     data() {
         return {
@@ -39,17 +39,19 @@ const Tasks = {
     },
     mounted() {
         const vm = this;
-        ApiFetchTasks().then(data => {
-            $("#task-aside-table").bootstrapTable('append', data.rows);
-            this.setBucketEvent(data.rows);
-            this.tasksCount = data.rows.length;
-            this.isInitDataFetched = true;
-            if (data.rows.length > 0) {
-                vm.selectedTask = data.rows[0];
-                this.checkTaskStatus(vm.selectedTask.task_id);
-                this.selectFirstTask();
-            }
-        });
+        $(document).on('vue_init', () => {
+            ApiFetchTasks().then(data => {
+                $("#task-aside-table").bootstrapTable('append', data.rows);
+                this.setBucketEvent(data.rows);
+                this.tasksCount = data.rows.length;
+                this.isInitDataFetched = true;
+                if (data.rows.length > 0) {
+                    vm.selectedTask = data.rows[0];
+                    this.checkTaskStatus(vm.selectedTask.task_id);
+                    this.selectFirstTask();
+                }
+            });
+        })
     },
     watch: {
         selectedTask(newValue, oldVal) {
@@ -78,7 +80,7 @@ const Tasks = {
                 this.closeWebsocket();
             }
             this.isLoadingWebsocket = true;
-            ApiWebsocketURLByResultId(this.selectedTask.task_id, resultId).then(({ websocket_url }) => {
+            ApiWebsocketURLByResultId(this.selectedTask.task_id, resultId).then(({websocket_url}) => {
                 this.init_websocket(websocket_url)
             })
         },
@@ -269,7 +271,7 @@ const Tasks = {
                 :is-loading-websocket="isLoadingWebsocket"
                 :selected-task="selectedTask"
                 :running-tasks-list="runningTasksList"
-                :session="session"
+                :session="$root.project_id"
                 :is-show-last-logs="isShowLastLogs"
                 :tags_mapper="tags_mapper"
                 :task-info="taskInfo">

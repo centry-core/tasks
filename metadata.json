@@ -1,5 +1,5 @@
 {
   "name": "Carrier Tasks RestAPI Plugin",
-  "version": "0.2",
-  "depends_on": ["projects", "secrets"]
+  "version": "0.3",
+  "depends_on": ["secrets"]
 }

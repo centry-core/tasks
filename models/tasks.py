@@ -11,6 +11,7 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
+from typing import Optional
 
 from sqlalchemy import Column, Integer, String, Text, DateTime
 
@@ -21,7 +22,8 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
     __tablename__ = "task"
 
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, unique=False, nullable=False)
+    project_id = Column(Integer, unique=False, nullable=True)
+    mode = Column(String(64), unique=False, nullable=False, default='default')
     task_id = Column(String(128), unique=True, nullable=False)
     zippath = Column(String(128), unique=False, nullable=False)
     task_name = Column(String(128), unique=False, nullable=False)
@@ -38,10 +40,6 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
             self.env_vars = "{}"
         super().insert()
 
-    @staticmethod
-    def tasks_count(project_id):
-        return Task.query.filter_by(project_id=project_id).count()
-
-    @staticmethod
-    def list_tasks(project_id):
-        return Task.query.filter_by(project_id=project_id)
+    @property
+    def file_name(self):
+        return self.zippath.rsplit('/', 1)[0]

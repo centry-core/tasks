@@ -21,7 +21,8 @@ class TaskResults(db_tools.AbstractBaseMixin, db.Base):
     __tablename__ = "task_results"
 
     id = Column(Integer, primary_key=True)
-    project_id = Column(Integer, unique=False, nullable=False)
+    project_id = Column(Integer, unique=False, nullable=True)
+    mode = Column(String(64), unique=False, nullable=False, default='default')
     task_id = Column(String(128), unique=False, nullable=True)
     ts = Column(Integer, unique=False, nullable=True)
     results = Column(Text, unique=False, nullable=True)

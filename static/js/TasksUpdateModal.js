@@ -42,7 +42,8 @@ const TasksUpdateModal = {
             }
         },
         async fetchTaskInfo() {
-            const res = await fetch (`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
+            const api_url = this.$root.build_api_url('tasks', 'tasks')
+            const res = await fetch (`${api_url}/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
                 method: 'GET',
             })
             return res.json();
@@ -80,7 +81,8 @@ const TasksUpdateModal = {
             return file
         },
         async updateTaskAPI(data){
-            const resp = await fetch(`/api/v1/tasks/tasks/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
+            const api_url = this.$root.build_api_url('tasks', 'tasks')
+            const resp = await fetch(`${api_url}/${getSelectedProjectId()}/${this.selectedTask.task_id}`,{
                 method: 'PUT',
                 body: data,
             })

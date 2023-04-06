@@ -1,11 +1,10 @@
 <tasks
-    @register="register"
-    instance_name="tasks"
-    session="{{ tools.session_project.get() }}"
-    :locations='{{locations | tojson}}'
-    :runtimes='{{runtimes}}'
+        @register="register"
+        instance_name="tasks"
+        :locations='{{ locations | tojson }}'
+        :runtimes='{{ runtimes }}'
 >
-     <template #test_parameters_create>
+    <template #test_parameters_create>
         {{ template_slot("params_table_content", payload={
             "caption": "Task Parameters",
             "modal_id": "createTaskModal"
@@ -13,14 +12,14 @@
     </template>
     <template #test_parameters_update>
         {{ template_slot("params_table_content", payload={
-        "caption": "Task Parameters",
-        "modal_id": "updateTaskModal"
-    }) | safe }}
+            "caption": "Task Parameters",
+            "modal_id": "updateTaskModal"
+        }) | safe }}
     </template>
     <template #test_parameters_run>
         {{ template_slot("params_table_content", payload={
-        "caption": "Task Parameters",
-        "modal_id": "runTaskModal"
-    }) | safe }}
+            "caption": "Task Parameters",
+            "modal_id": "runTaskModal"
+        }) | safe }}
     </template>
 </tasks>

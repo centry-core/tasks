@@ -79,16 +79,18 @@ const TasksLocation = {
         }
     },
     mounted() {
-        this.fetch_locations()
-        if (this.$props.location) this.location_ = this.$props.location
-        if (this.$props.cpu) this.cpu_ = this.$props.cpu
-        if (this.$props.memory) this.memory_ = this.$props.memory
-        if (this.$props.timeout) this.timeout_ = this.$props.timeout
-        if (this.$props.public_regions) this.public_regions_ = this.$props.public_regions
-        if (this.$props.project_regions) this.project_regions_ = this.$props.project_regions
-        if (this.$props.cloud_regions) this.cloud_regions_ = this.$props.cloud_regions
-        this.$nextTick(this.refresh_pickers)
-        this.$nextTick(this.refresh_pickers)
+        $(document).on('vue_init', () => {
+            this.fetch_locations()
+            if (this.$props.location) this.location_ = this.$props.location
+            if (this.$props.cpu) this.cpu_ = this.$props.cpu
+            if (this.$props.memory) this.memory_ = this.$props.memory
+            if (this.$props.timeout) this.timeout_ = this.$props.timeout
+            if (this.$props.public_regions) this.public_regions_ = this.$props.public_regions
+            if (this.$props.project_regions) this.project_regions_ = this.$props.project_regions
+            if (this.$props.cloud_regions) this.cloud_regions_ = this.$props.cloud_regions
+            this.$nextTick(this.refresh_pickers)
+            this.$nextTick(this.refresh_pickers)
+        })
     },
     watch: {
         location_(newValue) {
@@ -132,7 +134,8 @@ const TasksLocation = {
     },
     methods: {
         async fetch_locations() {
-            const resp = await fetch(`/api/v1/shared/locations/${getSelectedProjectId()}`)
+            const api_url = this.$root.build_api_url('shared', 'locations')
+            const resp = await fetch(`${api_url}/${getSelectedProjectId()}`)
             if (resp.ok) {
                 const {public_regions, project_regions, cloud_regions} = await resp.json()
                 this.public_regions_ = public_regions
