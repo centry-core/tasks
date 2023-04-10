@@ -15,7 +15,8 @@ var report_formatters = {
 var filesFormatter = {
     actions(value, row, index) {
         const api_url = V.build_api_url('tasks', 'download_task_log')
-        const url = row.project_id ? `${api_url}/${row.project_id}/${row.task_name}/${row.task_result_id}` : '';
+        // const url = row.project_id ? `${api_url}/${row.project_id}/${row.task_name}/${row.task_result_id}` : '';
+        const url = `${api_url}/${row.project_id}/${row.task_name}/${row.task_result_id}`
         if (row.task_status !== 'In progress...') {
             return `
                 <div class="d-flex justify-content-end">

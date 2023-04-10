@@ -10,8 +10,8 @@ class ResultsGetModel(BaseModel):
     id: int
     mode: str
     project_id: Optional[int]
-    results: str
-    task_duration: float
+    results: Optional[str] = '{}'
+    task_duration: Optional[float] = 0
     task_id: str
     task_result_id: str
     task_status: str
