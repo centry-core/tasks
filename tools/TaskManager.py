@@ -59,6 +59,7 @@ class TaskManager:
 
         task = Task(**task_model.dict())
         task.insert()
+        log.info('Task created: [id: %s, name: %s]', task.id, task.task_name)
         return task
 
     def run_task(self, event: list, task_id: Optional[str] = None, queue_name: Optional[str] = None) -> dict:
@@ -125,63 +126,3 @@ class TaskManager:
             Task.query.filter(Task.task_id == task_id).update({Task.env_vars: task_vars})
         Task.commit()
         return True
-
-
-# def create_task(project, file, args):
-#     if isinstance(file, str):
-#         file = data_tools.files.File(file)
-#     filename = str(uuid4())
-#     filename = secure_filename(filename)
-#     api_tools.upload_file(bucket="tasks", f=file, project=project)
-#     task = Task(
-#         task_id=filename,
-#         project_id=project.id,
-#         zippath=f"tasks/{file.filename}",
-#         task_name=args.get("funcname"),
-#         task_handler=args.get("invoke_func"),
-#         runtime=args.get("runtime"),
-#         region=args.get("region"),
-#         env_vars=args.get("env_vars")
-#     )
-#     task.insert()
-#     return task
-
-
-# def run_task(project_id: int, event, task_id=None, queue_name=None) -> dict:
-#     if not queue_name:
-#         queue_name = c.RABBIT_QUEUE_NAME
-#     vault_client = VaultClient.from_project(project_id)
-#     secrets = vault_client.get_all_secrets()
-#     task_id = task_id if task_id else secrets["control_tower_id"]
-#     task = Task.query.filter(Task.task_id == task_id).first()
-#     # TODO: we need to calculate it based on VUH, if we haven't used VUH quota then run
-#     # check_task_quota(task)
-#     arbiter = get_arbiter()
-#     task_kwargs = {
-#         "task": vault_client.unsecret(value=task.to_json(), secrets=secrets),
-#         "event": vault_client.unsecret(value=event, secrets=secrets),
-#         "galloper_url": vault_client.unsecret(value="{{secret.galloper_url}}", secrets=secrets),
-#         "token": vault_client.unsecret(value="{{secret.auth_token}}", secrets=secrets)
-#     }
-#     log.info('YASK KWARGS %s', task_kwargs)
-#     arbiter.apply("execute_lambda", queue=queue_name, task_kwargs=task_kwargs)
-#     arbiter.close()
-#     rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=task.project_id)
-#
-#     return {"message": "Accepted", "code": 200, "task_id": task_id}
-
-
-# def create_task_result(project_id: int,  data: dict):
-#     task_result = TaskResults(
-#         project_id=project_id,
-#         task_id=data.get('task_id'),
-#         ts=data.get('ts'),
-#         results=data.get('results'),
-#         log=data.get('log'),
-#         task_duration=data.get('task_duration'),
-#         task_status=data.get('task_status'),
-#         task_result_id=data.get('task_result_id'),
-#         task_stats=data.get('task_stats'),
-#     )
-#     task_result.insert()
-#     return task_result
