@@ -120,7 +120,6 @@ class Module(module.ModuleModel):
             })
         }
         task_manager = TaskManager(mode='administration')
-        log.info('control_tower task created')
         return task_manager.create_task(c.CONTROL_TOWER_PATH, cc_args)
 
     @staticmethod
@@ -158,7 +157,6 @@ class Module(module.ModuleModel):
         }
 
         task_manager = TaskManager(mode='administration')
-        log.info('rabbit_queue_checker task created')
         return task_manager.create_task(c.RABBIT_TASK_PATH, rabbit_queue_checker_args, 'rabbit_queue_checker.zip')
 
     def deinit(self):  # pylint: disable=R0201

@@ -87,8 +87,8 @@ class ProjectApi(api_tools.APIModeHandler):
         task_result.task_stats = data.get('task_stats')
         task_result.commit()
 
-        project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
-        task_name = Task.query.filter_by(project_id=project_id, task_id=task_result.task_id).first().task_name
+        # project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
+        # task_name = Task.query.filter_by(project_id=project_id, task_id=task_result.task_id).first().task_name
 
         write_task_run_logs_to_minio_bucket(task_result)
         resp = {"message": "Accepted", "code": 202, "task_result_id": task_result.task_result_id}
