@@ -1,0 +1,25 @@
+<tasks
+        @register="register"
+        instance_name="tasks"
+        :locations='{{ locations | tojson }}'
+        :runtimes='{{ runtimes }}'
+>
+    <template #test_parameters_create>
+        {{ template_slot("params_table_content", payload={
+            "caption": "Task Parameters",
+            "modal_id": "createTaskModal"
+        }) | safe }}
+    </template>
+    <template #test_parameters_update>
+        {{ template_slot("params_table_content", payload={
+            "caption": "Task Parameters",
+            "modal_id": "updateTaskModal"
+        }) | safe }}
+    </template>
+    <template #test_parameters_run>
+        {{ template_slot("params_table_content", payload={
+            "caption": "Task Parameters",
+            "modal_id": "runTaskModal"
+        }) | safe }}
+    </template>
+</tasks>
