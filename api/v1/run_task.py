@@ -30,7 +30,7 @@ class ProjectApi(api_tools.APIModeHandler):
         try:
             event = [{row['name']: row['default'] for row in request.json}]
         except:
-            event = request.json
+            event = request.json if isinstance(request.json, list) else [request.json]
         # resp = TaskManager(project.id).run_task(event, task.task_id)
         resp = TaskManager(project_id=project.id, mode=self.mode).run_task(event, task.task_id)
         task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(
