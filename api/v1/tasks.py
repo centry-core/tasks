@@ -9,7 +9,7 @@ from ...models.validation_pd import TaskCreateModelPD, TaskPutModelPD
 from hurry.filesize import size
 
 from ...tools.TaskManager import TaskManager
-from tools import api_tools, data_tools, MinioClient, MinioClientAdmin
+from tools import api_tools, data_tools, MinioClient, MinioClientAdmin, auth
 
 from pylon.core.tools import log
 
@@ -19,6 +19,13 @@ class ProjectApi(api_tools.APIModeHandler):
         return self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id), \
             Task.query.filter_by(task_id=task_id, project_id=project_id).first()
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.view"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": True, "editor": True},
+            "default": {"admin": True, "viewer": True, "editor": True},
+            "developer": {"admin": True, "viewer": True, "editor": True},
+        }})
     def get(self, project_id: int, task_id: str = None):
         args = request.args
         get_params = args.get('get_parameters', 'false')
@@ -57,6 +64,13 @@ class ProjectApi(api_tools.APIModeHandler):
 
         return {"total": len(rows), "rows": rows}, 200
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.create"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": True},
+            "default": {"admin": True, "viewer": False, "editor": True},
+            "developer": {"admin": True, "viewer": False, "editor": True},
+        }})
     def post(self, project_id: int):
         file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
@@ -91,6 +105,13 @@ class ProjectApi(api_tools.APIModeHandler):
         task = TaskManager(project.id, mode=self.mode).create_task(file, task_payload)
         return {"task_id": task.task_id, "message": f"Task {task_payload['funcname']} created"}, 201
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.edit"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": True},
+            "default": {"admin": True, "viewer": False, "editor": True},
+            "developer": {"admin": True, "viewer": False, "editor": True},
+        }})
     def put(self, project_id: int, task_id: str):
         file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
@@ -124,6 +145,13 @@ class ProjectApi(api_tools.APIModeHandler):
 
         return resp, 200
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.edit"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": True, "viewer": False, "editor": False},
+            "developer": {"admin": True, "viewer": False, "editor": False},
+        }})
     def delete(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)
         if not task:
@@ -158,6 +186,13 @@ class AdminApi(api_tools.APIModeHandler):
         else:
             return {"total": 1, "rows": [task.to_json()]}
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.view"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": True, "editor": True},
+            "default": {"admin": True, "viewer": True, "editor": True},
+            "developer": {"admin": True, "viewer": True, "editor": True},
+        }})
     def get(self, task_id: Optional[str] = None, **kwargs):
         if task_id:
             task = Task.query.filter(Task.task_id == task_id, Task.mode == self.mode).first()
@@ -168,6 +203,13 @@ class AdminApi(api_tools.APIModeHandler):
 
         return self._get_list(), 200
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.create"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": True},
+            "default": {"admin": True, "viewer": False, "editor": True},
+            "developer": {"admin": True, "viewer": False, "editor": True},
+        }})
     def post(self, **kwargs):
         file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
@@ -203,6 +245,13 @@ class AdminApi(api_tools.APIModeHandler):
         log.info('HERE IS POST 6')
         return {"task_id": task.task_id, "message": f"Task {task.task_name} created"}, 201
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.edit"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": True},
+            "default": {"admin": True, "viewer": False, "editor": True},
+            "developer": {"admin": True, "viewer": False, "editor": True},
+        }})
     def put(self, task_id: str, **kwargs):
         file = request.files.get('file')
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
@@ -239,6 +288,13 @@ class AdminApi(api_tools.APIModeHandler):
 
         return resp, 200
 
+    @auth.decorators.check_api({
+        "permissions": ["configuration.tasks.tasks.delete"],
+        "recommended_roles": {
+            "administration": {"admin": True, "viewer": False, "editor": False},
+            "default": {"admin": True, "viewer": False, "editor": False},
+            "developer": {"admin": True, "viewer": False, "editor": False},
+        }})
     def delete(self, task_id: str, **kwargs):
         task = Task.query.filter(Task.task_id == task_id, Task.mode == self.mode).first()
         # project, task = self._get_task(project_id, task_id)

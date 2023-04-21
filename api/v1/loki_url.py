@@ -2,10 +2,11 @@ from flask import request
 from ...models.tasks import Task
 from ...models.results import TaskResults
 
-from tools import constants as c, api_tools
+from tools import constants as c, api_tools, auth
 
 
 class ProjectApi(api_tools.APIModeHandler):
+    @auth.decorators.check_api(["configuration.tasks.results.view"])
     def get(self, project_id: int):
 
         task_id = request.args.get("task_id", None)
@@ -35,6 +36,7 @@ class ProjectApi(api_tools.APIModeHandler):
 
 
 class AdminApi(api_tools.APIModeHandler):
+    @auth.decorators.check_api(["configuration.tasks.results.view"])
     def get(self, **kwargs):
 
         task_id = request.args.get('task_id')

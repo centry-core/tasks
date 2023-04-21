@@ -1,8 +1,9 @@
 from ...models.results import TaskResults
-from tools import api_tools
+from tools import api_tools, auth
 
 
 class ProjectApi(api_tools.APIModeHandler):
+    @auth.decorators.check_api(["configuration.tasks.tasks.view"])
     def get(self, project_id: int, task_id: str):
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         # task_results_progress = TaskResults.query.filter(
