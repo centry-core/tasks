@@ -46,6 +46,13 @@ class Module(module.ModuleModel):
             "Tasks",
             title="Tasks",
             kind="slot",
+            permissions={
+                "permissions": ["configuration.tasks"],
+                "recommended_roles": {
+                    "administration": {"admin": True, "viewer": True, "editor": True},
+                    "default": {"admin": True, "viewer": True, "editor": True},
+                    "developer": {"admin": True, "viewer": True, "editor": True},
+                }},
             prefix="tasks_",
             weight=5,
         )
@@ -55,7 +62,13 @@ class Module(module.ModuleModel):
             "tasks", "Tasks",
             title="Tasks",
             kind="slot",
-            permissions=["global_admin"],
+            permissions={
+                "permissions": ["configuration.tasks"],
+                "recommended_roles": {
+                    "administration": {"admin": True, "viewer": True, "editor": True},
+                    "default": {"admin": True, "viewer": True, "editor": True},
+                    "developer": {"admin": True, "viewer": True, "editor": True},
+                }},
             prefix="administration_tasks_",
             # icon_class="fas fa-server fa-fw",
             # weight=2,

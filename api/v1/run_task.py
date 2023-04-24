@@ -7,7 +7,7 @@ from tools import VaultClient
 from pylon.core.tools import log
 
 from ...tools.TaskManager import TaskManager
-from tools import api_tools
+from tools import api_tools, auth
 
 
 class ProjectApi(api_tools.APIModeHandler):
@@ -15,6 +15,7 @@ class ProjectApi(api_tools.APIModeHandler):
         return self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id), \
                Task.query.filter(Task.task_id == task_id, Task.mode == self.mode).first()
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.view"])
     def get(self, project_id: int, task_id: str):
         # args = self.get_parser.parse_args(strict=False)
         args = request.args
@@ -25,6 +26,7 @@ class ProjectApi(api_tools.APIModeHandler):
             return vault_client.unsecret(task.to_json())
         return task.to_json(), 200
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.create"])
     def post(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
         try:
@@ -40,6 +42,7 @@ class ProjectApi(api_tools.APIModeHandler):
             task_result_id.commit()
         return resp, resp.get('code', 200)
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.edit"])
     def put(self, project_id: int, task_id: str):
         args = request.json
         project, task = self._get_task(project_id, task_id)
@@ -49,6 +52,7 @@ class ProjectApi(api_tools.APIModeHandler):
         task.commit()
         return task.to_json(), 200
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.delete"])
     def delete(self, project_id: int, task_id: str):
         project, task = self._get_task(project_id, task_id)  # todo: why do we extra query project?
         task.delete()
@@ -59,6 +63,7 @@ class AdminApi(api_tools.APIModeHandler):
     def _get_task(self, task_id: str):
         return Task.query.filter(Task.task_id == task_id, Task.mode == self.mode).first()
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.view"])
     def get(self, task_id: str, **kwargs):
         task = self._get_task(task_id)
         if request.args.get("exec"):
@@ -66,6 +71,7 @@ class AdminApi(api_tools.APIModeHandler):
             return vault_client.unsecret(task.to_json()), 200
         return task.to_json(), 200
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.create"])
     def post(self, task_id: str, **kwargs):
         task = self._get_task(task_id)
         try:
@@ -84,6 +90,7 @@ class AdminApi(api_tools.APIModeHandler):
             task_result_id.commit()
         return resp, resp['code']
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.edit"])
     def put(self, task_id: str, **kwargs):
         task = self._get_task(task_id)
         task.task_handler = request.json.get("invoke_func", task.task_handler)
@@ -92,6 +99,7 @@ class AdminApi(api_tools.APIModeHandler):
         task.commit()
         return task.to_json(), 200
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.delete"])
     def delete(self, task_id: str, **kwargs):
         # task = self._get_task(task_id)
         # task.delete()

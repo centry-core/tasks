@@ -10,12 +10,13 @@ from ...models.pd.results import ResultsGetModel
 from ...models.results import TaskResults
 from ...models.tasks import Task
 
-from tools import api_tools
+from tools import api_tools, auth
 
 from ...utils import write_task_run_logs_to_minio_bucket
 
 
 class ProjectApi(api_tools.APIModeHandler):
+    @auth.decorators.check_api(["configuration.tasks.tasks.view"])
     def get(self, project_id: int, task_id: str):
         rows = defaultdict(list)
 
@@ -55,6 +56,7 @@ class ProjectApi(api_tools.APIModeHandler):
             rows[task.task_name].append(data)
         return make_response({"total": len(task_result), "rows": rows}, 200)
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.create"])
     def post(self, project_id: int):
         data = request.json
         task_result = TaskResults(
@@ -72,6 +74,7 @@ class ProjectApi(api_tools.APIModeHandler):
         task_result.insert()
         return {"message": "Created", "code": 201, "task_id": task_result.id}, 201
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.edit"])
     def put(self, project_id: int):
         data = request.json
         args = request.args
@@ -96,6 +99,7 @@ class ProjectApi(api_tools.APIModeHandler):
 
 
 class AdminApi(api_tools.APIModeHandler):
+    @auth.decorators.check_api(["configuration.tasks.tasks.view"])
     def get(self, task_id: str, **kwargs):
         args = request.args
         rows = defaultdict(list)
@@ -124,6 +128,7 @@ class AdminApi(api_tools.APIModeHandler):
         rows = [ResultsGetModel.parse_obj(i.to_json()).dict() for i in task_results]
         return {"total": len(rows), "rows": rows}, 200
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.create"])
     def post(self, **kwargs):
         data = request.json
         # task_result = create_task_result(project_id, data)
@@ -141,6 +146,7 @@ class AdminApi(api_tools.APIModeHandler):
         task_result.insert()
         return {"message": "Created", "code": 201, "task_id": task_result.id}, 201
 
+    @auth.decorators.check_api(["configuration.tasks.tasks.edit"])
     def put(self, **kwargs):
         data = request.json
         args = request.args
