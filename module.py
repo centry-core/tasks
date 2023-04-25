@@ -106,7 +106,7 @@ class Module(module.ModuleModel):
         }
         task_manager = TaskManager(mode='administration')
         return task_manager.create_task(
-            self.descriptor.config('control_tower_task_path'),
+            self.descriptor.config['control_tower_task_path'],
             cc_args
         )
 
@@ -145,7 +145,7 @@ class Module(module.ModuleModel):
 
         task_manager = TaskManager(mode='administration')
         return task_manager.create_task(
-            self.descriptor.config('rabbit_queue_checker_task_path'),
+            self.descriptor.config['rabbit_queue_checker_task_path'],
             rabbit_queue_checker_args,
             'rabbit_queue_checker.zip'
         )
