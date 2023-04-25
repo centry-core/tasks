@@ -81,44 +81,16 @@ class Module(module.ModuleModel):
         vault_client = VaultClient()
         secrets = vault_client.get_all_secrets()
 
-        # if not ('post_processor' in secrets and 'post_processor_id' in secrets):
-        #     pp = self.create_post_processing_task()
-        #     secrets['post_processor'] = f'{c.APP_HOST}{pp.webhook}'
-        #     secrets['post_processor_id'] = pp.task_id
-
         if 'control_tower_id' not in secrets:
             cc = self.create_control_tower_task()
             secrets['control_tower_id'] = cc.task_id
 
         if 'rabbit_queue_checker_id' not in secrets:
-            rqc = self.create_rabbit_queue_checker_task(mode='administration')
+            rqc = self.create_rabbit_queue_checker_task()
             secrets['rabbit_queue_checker_id'] = rqc.task_id
         vault_client.set_secrets(secrets)
 
-    # @staticmethod
-    # def create_post_processing_task() -> Task:
-    #     pp_args = {
-    #         "funcname": "post_processor",
-    #         "invoke_func": "lambda_function.lambda_handler",
-    #         "runtime": "Python 3.7",
-    #         "region": "default",
-    #         "env_vars": json.dumps({
-    #             "influx_host": "{{secret.influx_ip}}",
-    #             "influx_user": "{{secret.influx_user}}",
-    #             "influx_password": "{{secret.influx_password}}",
-    #             "remove_row_data": "false",
-    #             "jmeter_db": "{{secret.jmeter_db}}",
-    #             "gatling_db": "{{secret.gatling_db}}",
-    #             "comparison_db": "{{secret.comparison_db}}"
-    #         })
-    #     }
-    #
-    #     task_manager = TaskManager(mode='administration')
-    #     log.info('post_processing task created')
-    #     return task_manager.create_task(c.POST_PROCESSOR_PATH, pp_args)
-
-    @staticmethod
-    def create_control_tower_task() -> Task:
+    def create_control_tower_task(self) -> Task:
         cc_args = {
             "funcname": "control_tower",
             "invoke_func": "lambda.handler",
@@ -133,14 +105,16 @@ class Module(module.ModuleModel):
             })
         }
         task_manager = TaskManager(mode='administration')
-        return task_manager.create_task(c.CONTROL_TOWER_PATH, cc_args)
+        return task_manager.create_task(
+            self.descriptor.config['control_tower_task_path'],
+            cc_args
+        )
 
-    @staticmethod
-    def create_rabbit_queue_checker_task(mode: str = 'default') -> Task:
+    def create_rabbit_queue_checker_task(self) -> Task:
         rabbit_queue_checker_args = {
             "funcname": "rabbit_queue_checker",
             "invoke_func": "lambda.handler",
-            "runtime": "Python 3.7",
+            "runtime": "Python 3.8",
             "region": "default",
             "env_vars": json.dumps({
                 "token": '{{secret.auth_token}}',
@@ -170,7 +144,11 @@ class Module(module.ModuleModel):
         }
 
         task_manager = TaskManager(mode='administration')
-        return task_manager.create_task(c.RABBIT_TASK_PATH, rabbit_queue_checker_args, 'rabbit_queue_checker.zip')
+        return task_manager.create_task(
+            self.descriptor.config['rabbit_queue_checker_task_path'],
+            rabbit_queue_checker_args,
+            'rabbit_queue_checker.zip'
+        )
 
     def deinit(self):  # pylint: disable=R0201
         """ De-init module """

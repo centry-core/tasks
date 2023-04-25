@@ -1,1 +1,2 @@
-
+control_tower_task_path: "https://github.com/carrier-io/control_tower/raw/master/package/control-tower.zip"
+rabbit_queue_checker_task_path: "https://github.com/carrier-io/rabbit_queue_checker/releases/download/latest/rabbit_queue_checker.zip"

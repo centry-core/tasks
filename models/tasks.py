@@ -11,6 +11,7 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
+from queue import Empty
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, Text, DateTime
@@ -41,5 +42,5 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
         super().insert()
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         return self.zippath.rsplit('/', 1)[0]
