@@ -1,7 +1,8 @@
 from flask import request
 
+# from ...constants import TASK_STATUS
 from ...models.tasks import Task
-from ...models.results import TaskResults
+# from ...models.results import TaskResults
 
 from tools import VaultClient
 from pylon.core.tools import log
@@ -35,11 +36,12 @@ class ProjectApi(api_tools.APIModeHandler):
             event = request.json if isinstance(request.json, list) else [request.json]
         # resp = TaskManager(project.id).run_task(event, task.task_id)
         resp = TaskManager(project_id=project.id, mode=self.mode).run_task(event, task.task_id)
-        task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(
-            TaskResults.id.desc()).first()
-        if resp['code'] == 200 and task_result_id:
-            task_result_id.task_status = "In progress..."
-            task_result_id.commit()
+        # todo: why do you think task_result_id will be correct?
+        # task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(
+        #     TaskResults.id.desc()).first()
+        # if resp['code'] == 200 and task_result_id:
+        #     task_result_id.task_status = TASK_STATUS.IN_PROGRESS
+        #     task_result_id.commit()
         return resp, resp.get('code', 200)
 
     @auth.decorators.check_api(["configuration.tasks.tasks.edit"])
@@ -80,14 +82,14 @@ class AdminApi(api_tools.APIModeHandler):
             event = request.json
         resp = TaskManager(mode=self.mode).run_task(event, task.task_id)
         # todo: why do you think task_result_id will be correct?
-        task_result_id = TaskResults.query.filter(
-            TaskResults.task_id == task_id
-        ).order_by(
-            TaskResults.id.desc()
-        ).first()
-        if resp['code'] == 200 and task_result_id:
-            task_result_id.task_status = "In progress..."
-            task_result_id.commit()
+        # task_result_id = TaskResults.query.filter(
+        #     TaskResults.task_id == task_id
+        # ).order_by(
+        #     TaskResults.id.desc()
+        # ).first()
+        # if resp['code'] == 200 and task_result_id:
+        #     task_result_id.task_status = TASK_STATUS.IN_PROGRESS
+        #     task_result_id.commit()
         return resp, resp['code']
 
     @auth.decorators.check_api(["configuration.tasks.tasks.edit"])

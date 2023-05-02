@@ -1,17 +1,28 @@
 import json
-from typing import Optional
+from typing import Optional, List
 
 from flask import request
 from pydantic import ValidationError
+from sqlalchemy import or_, and_
 
 from ...models.tasks import Task
 from ...models.validation_pd import TaskCreateModelPD, TaskPutModelPD
 from hurry.filesize import size
 
 from ...tools.TaskManager import TaskManager
-from tools import api_tools, data_tools, MinioClient, MinioClientAdmin, auth
+from tools import api_tools, data_tools, MinioClient, MinioClientAdmin, auth, VaultClient
 
 from pylon.core.tools import log
+
+
+class SizeMapper:
+    def __init__(self, files: List[dict]):
+        self.sizes = {i['name']: size(i["size"]) for i in files}
+
+    def map_size(self, task: Task) -> dict:
+        result = task.to_json()
+        result["size"] = self.sizes.get(task.file_name)
+        return result
 
 
 class ProjectApi(api_tools.APIModeHandler):
@@ -50,19 +61,44 @@ class ProjectApi(api_tools.APIModeHandler):
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         c = MinioClient(project)
         files = c.list_files('tasks')
-        total, tasks = api_tools.get(project_id, args, Task)
-        rows = []
-        for each in files:
-            for task in tasks:
-                name = each["name"]
-                if str(task.zippath).split("/")[-1] == name:
-                    each['task_id'] = task.task_id
-                    each["task_name"] = task.task_name
-                    each['webhook'] = task.webhook
-                    each["size"] = size(each["size"])
-                    rows.append(each)
+        # total, tasks = api_tools.get(project_id, args, Task)
+        secrets = VaultClient.from_project(project_id).get_all_secrets()
+        control_tower_id = secrets.get('control_tower_id')
+        total, tasks = api_tools.get(
+            project_id, request.args, Task,
+            mode=self.mode,
+            rpc_manager=self.module.context.rpc_manager,
+            # carrier.task.mode = :mode_1 AND
+            # carrier.task.project_id = :project_id_1 AND
+            # (carrier.task.zippath IN (__[POSTCOMPILE_zippath_1]) OR carrier.task.task_id = :task_id_1)
+            custom_filter=or_(
+                and_(
+                    Task.mode == self.mode,
+                    Task.project_id == project_id,
+                    Task.zippath.in_([
+                        f'tasks/{i["name"]}' for i in files
+                    ])
+                ),
+                Task.task_id == control_tower_id
+            )
+        )
 
-        return {"total": len(rows), "rows": rows}, 200
+        # rows = []
+        # log.info('tsks get files %s', files)
+        # log.info('tsks get %s', tasks)
+        # for i in files:
+        #     for task in tasks:
+        #         name = i["name"]
+        #         # if str(task.zippath).split("/")[-1] == name:
+        #         if task.file_name == name:
+        #             i['task_id'] = task.task_id
+        #             i["task_name"] = task.task_name
+        #             i['webhook'] = task.webhook
+        #             i["size"] = size(i["size"])
+        #             rows.append(i)
+        size_mapper = SizeMapper(files)
+
+        return {"total": total, "rows": list(map(size_mapper.map_size, tasks))}, 200
 
     @auth.decorators.check_api({
         "permissions": ["configuration.tasks.tasks.create"],
@@ -170,11 +206,17 @@ class AdminApi(api_tools.APIModeHandler):
             None, request.args, Task,
             mode=self.mode,
             rpc_manager=self.module.context.rpc_manager,
-            additional_filters=[Task.zippath.in_([
-                f'tasks/{i["name"]}' for i in files
-            ])]
+            additional_filters=[
+                Task.zippath.in_([
+                    f'tasks/{i["name"]}' for i in files
+                ])
+            ]
+            # additional_filters=[Task.task_name.in_([Path(i["name"]).stem for i in files])]
         )
-        return {"total": total, "rows": [i.to_json() for i in tasks]}
+
+        size_mapper = SizeMapper(files)
+        return {"total": total, "rows": list(map(size_mapper.map_size, tasks))}
+        # return {"total": total, "rows": [i.to_json() for i in tasks]}
 
     def _get_details(self, task: Task, with_params: bool = False) -> dict:
         if with_params:

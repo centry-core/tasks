@@ -15,7 +15,7 @@ class ProjectApi(api_tools.APIModeHandler):
         if not task_id and not task_result_id:
             return {"message": "task_id and task_result_id is not provided."}, 404
 
-        task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
+        task = Task.query.filter_by(task_id=task_id).first()
         # TODO: to check if this is not bug and is proper solution to get last task_result_id by latest id.
         if task_id and not task_result_id:
             task_result_id = TaskResults.query.filter_by(task_id=task_id, project_id=project_id).order_by(TaskResults.id.desc()).first_or_404().task_result_id

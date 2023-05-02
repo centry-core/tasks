@@ -217,7 +217,7 @@ const TasksTable = {
                     'data-pagination': 'true',
                     'data-page-list': '[5, 10, 15, 20]',
                     'data-page-size': 5,
-                    'data-sort-name': 'ts',
+                    'data-sort-name': 'id',
                     'data-sort-order': 'desc',
                     'id': 'logs-table',
                     'data-side-pagination': 'client',

@@ -1,3 +1,11 @@
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        pass
+
 RUNTIME_MAPPING = {
     "Python 3.7": 'lambda:python3.7',
     "Python 3.8": 'lambda:python3.8',
@@ -14,3 +22,9 @@ RUNTIME_MAPPING = {
     "Node.js 12.x": 'lambda:nodejs12.x',
     "Ruby 2.5": 'lambda:ruby2.5'
 }
+
+
+class TASK_STATUS(StrEnum):
+    IN_PROGRESS = 'In progress...'
+    DONE = 'Done'
+    FAILED = 'Failed'
