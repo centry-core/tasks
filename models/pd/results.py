@@ -16,7 +16,7 @@ class ResultsGetModel(BaseModel):
     task_result_id: str
     task_status: str
     ts: Union[int, str, None]
-    # timestamp: Optional[str]
+    created_at: Union[datetime, str, None]
 
     @validator('task_stats')
     def format_stats(cls, value: Optional[dict]):
@@ -43,4 +43,10 @@ class ResultsGetModel(BaseModel):
     def set_ts(cls, value, values: dict):
         if isinstance(value, int):
             return datetime.fromtimestamp(value).isoformat()
+        return value
+
+    @validator('created_at')
+    def format_date(cls, value, values: dict):
+        if isinstance(value, datetime):
+            return value.isoformat(timespec='seconds')
         return value

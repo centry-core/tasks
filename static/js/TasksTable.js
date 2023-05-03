@@ -1,3 +1,7 @@
+function date_formatter(value) {
+    return new Date(value + 'Z').toLocaleString()
+}
+
 const TasksTable = {
     props: ['selected-task', 'task-info', 'tags_mapper', 'isShowLastLogs', 'runningTasksList', 'isLoadingWebsocket'],
     components: {
@@ -231,7 +235,9 @@ const TasksTable = {
                         data-sortable="true" 
                         class="min-w-36"
                         data-sort-name="timestamp" 
-                        data-field="ts">Date</th>
+                        data-field="created_at"
+                        data-formatter="date_formatter"
+                    >Date</th>
                     <th scope="col" 
                         data-sortable="true" 
                         class="w-100"

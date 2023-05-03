@@ -15,6 +15,11 @@ from tools import api_tools, data_tools, MinioClient, MinioClientAdmin, auth, Va
 from pylon.core.tools import log
 
 
+def get_control_tower_size() -> int:
+    mc = MinioClientAdmin()
+    return size(mc.get_file_size(mc.TASKS_BUCKET, 'control-tower.zip'))
+
+
 class SizeMapper:
     def __init__(self, files: List[dict]):
         self.sizes = {i['name']: size(i["size"]) for i in files}
@@ -61,6 +66,7 @@ class ProjectApi(api_tools.APIModeHandler):
         project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         c = MinioClient(project)
         files = c.list_files('tasks')
+
         # total, tasks = api_tools.get(project_id, args, Task)
         secrets = VaultClient.from_project(project_id).get_all_secrets()
         control_tower_id = secrets.get('control_tower_id')
@@ -97,6 +103,7 @@ class ProjectApi(api_tools.APIModeHandler):
         #             i["size"] = size(i["size"])
         #             rows.append(i)
         size_mapper = SizeMapper(files)
+        size_mapper.sizes['control-tower.zip'] = get_control_tower_size()
 
         return {"total": total, "rows": list(map(size_mapper.map_size, tasks))}, 200
 
