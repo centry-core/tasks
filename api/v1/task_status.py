@@ -1,3 +1,4 @@
+from ...constants import TASK_STATUS
 from ...models.results import TaskResults
 from tools import api_tools, auth
 
@@ -43,9 +44,8 @@ class API(api_tools.APIBase):
     }
 
     def _query_results(self, query_filter: list):
-        INPROGRESS = "In progress..."
         resp = TaskResults.query.with_entities(TaskResults.task_result_id).filter(
-            TaskResults.task_status == INPROGRESS,
+            TaskResults.task_status == TASK_STATUS.IN_PROGRESS,
             *query_filter
         ).all()
         if resp:

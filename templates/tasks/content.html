@@ -19,7 +19,8 @@
     <template #test_parameters_run>
         {{ template_slot("params_table_content", payload={
             "caption": "Task Parameters",
-            "modal_id": "runTaskModal"
+            "modal_id": "runTaskModal",
+            "hidden_columns": []
         }) | safe }}
     </template>
 </tasks>

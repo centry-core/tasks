@@ -11,10 +11,7 @@
 #     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
-from queue import Empty
-from typing import Optional
-
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text
 
 from tools import db, db_tools
 
@@ -43,4 +40,16 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
 
     @property
     def file_name(self) -> str:
-        return self.zippath.rsplit('/', 1)[0]
+        return self.zippath.rsplit('/', 1)[-1]
+
+    # def to_json(self, exclude_fields: Optional[set] = None, **kwargs):
+    #     plugin_name = self.file_name
+    #     try:
+    #         return self.rpc.call_function_with_timeout(
+    #             func=f'serializer',
+    #             timeout=2,
+    #             exclude_fields=exclude_fields
+    #         )
+    #     except Empty:
+    #         return super().to_json()
+

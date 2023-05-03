@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel, validator
 from hurry.filesize import size
@@ -15,8 +15,8 @@ class ResultsGetModel(BaseModel):
     task_id: str
     task_result_id: str
     task_status: str
-    ts: Optional[str]
-    timestamp: Optional[int]
+    ts: Union[int, str, None]
+    created_at: Union[datetime, str, None]
 
     @validator('task_stats')
     def format_stats(cls, value: Optional[dict]):
@@ -40,8 +40,13 @@ class ResultsGetModel(BaseModel):
         }
 
     @validator('ts')
-    def set_ts(cls, value, values):
-        if isinstance(value, str):
-            return value
-        values['timestamp'] = value
-        return datetime.fromtimestamp(value).isoformat()
+    def set_ts(cls, value, values: dict):
+        if isinstance(value, int):
+            return datetime.fromtimestamp(value).isoformat()
+        return value
+
+    @validator('created_at')
+    def format_date(cls, value, values: dict):
+        if isinstance(value, datetime):
+            return value.isoformat(timespec='seconds')
+        return value

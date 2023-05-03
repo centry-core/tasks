@@ -18,43 +18,57 @@ from ...utils import write_task_run_logs_to_minio_bucket
 class ProjectApi(api_tools.APIModeHandler):
     @auth.decorators.check_api(["configuration.tasks.tasks.view"])
     def get(self, project_id: int, task_id: str):
-        rows = defaultdict(list)
+        task = Task.query.filter(Task.task_id == task_id).first()
 
-        task_result = TaskResults.query.filter_by(project_id=project_id, task_id=task_id).all()
-        for row in task_result:
-            # what the fk is this
-            task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
-            data = row.to_json()
-            data["timestamp"] = row.ts
-            try:
-                data["ts"] = datetime.fromtimestamp(row.ts).isoformat()
-            except:
-                data["ts"] = None
+        if not task:
+            abort(404)
 
-            if task_stats := data.pop("task_stats", None):
-                usage_delta = (
-                        task_stats['cpu_stats']['cpu_usage']['total_usage'] -
-                        task_stats['precpu_stats']['cpu_usage']['total_usage']
-                )
-                system_delta = (
-                        task_stats['cpu_stats']['system_cpu_usage'] -
-                        task_stats['precpu_stats']['system_cpu_usage']
-                )
-                online_cpus = task_stats["cpu_stats"].get("online_cpus", len(task_stats["cpu_stats"]["cpu_usage"].get("percpu_usage", [None])))
+        task_results = TaskResults.query.filter(
+            TaskResults.mode == self.mode,
+            TaskResults.task_id == task_id,
+            TaskResults.project_id == project_id,
+        ).all()
 
-                memory_usage = size(task_stats["memory_stats"]["usage"]) if task_stats.get('memory_stats') else task_stats["memory_usage"]
-                logging.info(f'updating task_stats {memory_usage}')
-                data["task_stats"] = {
-                    "cpu_usage": round(usage_delta / system_delta, 2) * online_cpus * 100,
-                    "memory_usage": memory_usage
-                }
-            else:
-                data["task_stats"] = task_stats
+        rows = [ResultsGetModel.parse_obj(i.to_json()).dict() for i in task_results]
+        return {"total": len(rows), "rows": rows}, 200
 
-            del data['log']
-
-            rows[task.task_name].append(data)
-        return make_response({"total": len(task_result), "rows": rows}, 200)
+        # rows = defaultdict(list)
+        #
+        # task_result = TaskResults.query.filter_by(project_id=project_id, task_id=task_id).all()
+        # for row in task_result:
+        #     # todo: what the fuck is this??
+        #     task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
+        #     data = row.to_json()
+        #     data["timestamp"] = row.ts
+        #     try:
+        #         data["ts"] = datetime.fromtimestamp(row.ts).isoformat()
+        #     except:
+        #         data["ts"] = None
+        #
+        #     if task_stats := data.pop("task_stats", None):
+        #         usage_delta = (
+        #                 task_stats['cpu_stats']['cpu_usage']['total_usage'] -
+        #                 task_stats['precpu_stats']['cpu_usage']['total_usage']
+        #         )
+        #         system_delta = (
+        #                 task_stats['cpu_stats']['system_cpu_usage'] -
+        #                 task_stats['precpu_stats']['system_cpu_usage']
+        #         )
+        #         online_cpus = task_stats["cpu_stats"].get("online_cpus", len(task_stats["cpu_stats"]["cpu_usage"].get("percpu_usage", [None])))
+        #
+        #         memory_usage = size(task_stats["memory_stats"]["usage"]) if task_stats.get('memory_stats') else task_stats["memory_usage"]
+        #         logging.info(f'updating task_stats {memory_usage}')
+        #         data["task_stats"] = {
+        #             "cpu_usage": round(usage_delta / system_delta, 2) * online_cpus * 100,
+        #             "memory_usage": memory_usage
+        #         }
+        #     else:
+        #         data["task_stats"] = task_stats
+        #
+        #     del data['log']
+        #
+        #     rows[task.task_name].append(data)
+        # return make_response({"total": len(task_result), "rows": rows}, 200)
 
     @auth.decorators.check_api(["configuration.tasks.tasks.create"])
     def post(self, project_id: int):
@@ -112,19 +126,6 @@ class AdminApi(api_tools.APIModeHandler):
             TaskResults.task_id == task_id
         ).all()
 
-        # for row in task_results:
-        #     data = row.to_json()
-        #     data["timestamp"] = row.ts
-        #     try:
-        #         data["ts"] = datetime.fromtimestamp(row.ts).isoformat()
-        #     except:
-        #         data["ts"] = None
-        #     # if task_stats := data.pop("task_stats", None):
-        #     #
-        #     # else:
-        #     #     data["task_stats"] = task_stats
-        #
-        #     rows['task.task_name'].append(data)
         rows = [ResultsGetModel.parse_obj(i.to_json()).dict() for i in task_results]
         return {"total": len(rows), "rows": rows}, 200
 

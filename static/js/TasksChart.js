@@ -3,7 +3,7 @@ const TasksChart = {
     mounted() {
         if (!this.isLoading) {
             const ctx = document.getElementById(this.chartId);
-            const chart = new Chart(ctx, {
+            window.taskCharts[this.type] = new Chart(ctx, {
                 type: this.type,
                 data: {
                     labels: this.labels,
@@ -11,7 +11,6 @@ const TasksChart = {
                 },
                 options: this.options,
             });
-            window.taskCharts[this.type] = chart;
         }
     },
     template: `

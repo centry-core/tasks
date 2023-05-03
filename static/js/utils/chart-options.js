@@ -6,42 +6,42 @@ window.taskCharts = {
 const chartLineScales = {
     cpu: {
         display: true,
-            position: 'left',
-            beginAtZero: true,
-            grid: {
+        position: 'left',
+        beginAtZero: true,
+        grid: {
             drawOnChartArea: false,
         },
         title: {
             text: 'cpu, %',
-                display: true,
+            display: true,
         }
     },
     memory: {
         display: true,
-            position: 'right',
-            beginAtZero: true,
-            grid: {
+        position: 'right',
+        beginAtZero: true,
+        grid: {
             drawOnChartArea: false,
         },
         title: {
             text: 'memory, Mb',
-                display: true,
+            display: true,
         }
     },
 }
 
 const chartBarOptions = {
     responsive: true,
-        maintainAspectRatio: false,
+    maintainAspectRatio: false,
     scales: {
         y: {
             beginAtZero: true,
-                grid: {
+            grid: {
                 display: false
             },
             title: {
                 text: 'duration, sec',
-                    display: true,
+                display: true,
             }
         },
         x: {
@@ -55,4 +55,4 @@ const chartBarOptions = {
     }
 }
 
-const chartLineOptions = { ...chartBarOptions, scales: chartLineScales }
+const chartLineOptions = {...chartBarOptions, scales: chartLineScales}
