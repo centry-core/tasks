@@ -230,11 +230,11 @@ const TasksTable = {
                 container_classes="mt-3 mr-3"
             >
                 <template #table_headers>
-                    <th data-field="id" data-sortable="true">Id</th>
+                    <th data-visible="false" data-field="id" data-sortable="true">Id</th>
                     <th scope="col" 
                         data-sortable="true" 
-                        class="min-w-36"
-                        data-sort-name="timestamp" 
+                        class="min-w-52"
+                        data-sort-name="id" 
                         data-field="created_at"
                         data-formatter="date_formatter"
                     >Date</th>
