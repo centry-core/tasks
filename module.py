@@ -94,7 +94,7 @@ class Module(module.ModuleModel):
         cc_args = {
             "funcname": "control_tower",
             "invoke_func": "lambda.handler",
-            "runtime": "Python 3.7",
+            "runtime": "Python 3.8",
             "region": "default",
             "env_vars": json.dumps({
                 "token": "{{secret.auth_token}}",
