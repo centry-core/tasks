@@ -1,3 +1,32 @@
+var tableFormatter = {
+    actions(value, row, index) {
+        const is_disabled = V.mode !== 'administration' && row.mode === 'administration'
+        if (!is_disabled) {
+            return `
+            <div class="d-none">
+                <button class="btn btn-default btn-xs btn-table btn-icon__xs task_delete">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+                <button class="btn btn-default btn-xs btn-table btn-icon__xs task_setting">
+                    <i class="fas fa-gear"></i>
+                </button>
+            </div>
+            `
+        } else {
+            return `
+            <div class="d-none">
+                <button disabled class="btn btn-default btn-xs btn-table btn-icon__xs task_delete">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+                <button disabled class="btn btn-default btn-xs btn-table btn-icon__xs task_setting">
+                    <i class="fas fa-gear"></i>
+                </button>
+            </div>
+            `
+        }
+    }
+}
+
 const TasksListAside = {
     props: ['isInitDataFetched', 'selectedTask', 'checkedBucketsList', 'bucketCount'],
     data() {
@@ -54,10 +83,7 @@ const TasksListAside = {
                             <th data-sortable="true" data-field="task_name" class="bucket-name">NAME</th>
                             <th data-sortable="true" data-cell-style="nameStyle" data-field="size" class="bucket-size">SIZE</th>
                             <th data-cell-style="nameStyle" 
-                                data-formatter='<div class="d-none">
-                                    <button class="btn btn-default btn-xs btn-table btn-icon__xs task_delete"><i class="fas fa-trash-alt"></i></button>
-                                    <button class="btn btn-default btn-xs btn-table btn-icon__xs task_setting"><i class="fas fa-gear"></i></button>
-                                </div>'
+                                data-formatter='tableFormatter.actions'
                                 data-events="bucketEvents">
                             </th>
                         </tr>

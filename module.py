@@ -40,6 +40,7 @@ class Module(module.ModuleModel):
         self.descriptor.init_api()
         self.descriptor.init_blueprint()
         self.descriptor.init_rpcs()
+        self.descriptor.init_events()
 
         theme.register_subsection(
             "configuration", "tasks",

@@ -2,13 +2,13 @@ const TasksCreateModal = {
     components: {
         'input-stepper': InputStepper,
         'tasks-location': TasksLocation,
+        'tasks-monitoring': TasksMonitoring,
     },
-    props: ['locations', 'runtimes'],
+    props: ['locations', 'runtimes', 'integrations'],
     data() {
         return this.initial_state()
     },
-    watch: {
-    },
+    watch: {},
     mounted() {
         $('#task_modal_parallel').closest('div.custom-input').hide();
         const vm = this;
@@ -20,11 +20,11 @@ const TasksCreateModal = {
         });
     },
     computed: {
-         test_parameters() {
+        test_parameters() {
             return ParamsTable.Manager("createTaskModal_test_params");
         },
         isValidDA() {
-             return this.isSubmitted && !this.previewFile;
+            return this.isSubmitted && !this.previewFile;
         },
     },
     methods: {
@@ -42,37 +42,43 @@ const TasksCreateModal = {
                 previewFile: null,
                 file: null,
                 error: {},
+                monitoring_settings: {
+                    integration: null,
+                    failed_tasks: 5,
+                    recipients: []
+                },
                 isSubmitted: false,
             }
         },
         get_data() {
             return {
-                 "task_name": this.task_name,
-                 "task_package": this.previewFile,
-                 "runtime": this.runtime,
-                 "task_handler": this.task_handler,
-                 "engine_location": this.location,
-                 "cpu_cores": this.cpu_quota,
-                 "memory": this.memory_quota,
-                 "timeout": this.timeout_quota,
-                 "task_parameters": this.test_parameters.get()
+                "task_name": this.task_name,
+                "task_package": this.previewFile,
+                "runtime": this.runtime,
+                "task_handler": this.task_handler,
+                "engine_location": this.location,
+                "cpu_cores": this.cpu_quota,
+                "memory": this.memory_quota,
+                "timeout": this.timeout_quota,
+                "task_parameters": this.test_parameters.get(),
+                "monitoring_settings": this.monitoring_settings,
             }
         },
         uploadFile(e) {
-            const file =  e.target.files[0];
+            const file = e.target.files[0];
             this.previewFile = file.name
             this.file = file
             return file
         },
         onDrop(e) {
-            const file =  e.dataTransfer.files[0];
+            const file = e.dataTransfer.files[0];
             this.previewFile = file.name
             this.file = file
             return file
         },
-        async createTask(data){
+        async createTask(data) {
             const api_url = this.$root.build_api_url('tasks', 'tasks')
-            const resp = await fetch(`${api_url}/${getSelectedProjectId()}`,{
+            const resp = await fetch(`${api_url}/${getSelectedProjectId()}`, {
                 method: 'POST',
                 body: data,
             })
@@ -97,8 +103,8 @@ const TasksCreateModal = {
                         throw new Error(response[0].msg)
                     }
                 }).then(() => {
-                    data.append('file',this.file);
-                    this.createTask(data).then( response => {
+                    data.append('file', this.file);
+                    this.createTask(data).then(response => {
                         showNotify('SUCCESS', 'Task Created.');
                         this.$emit('update-tasks-list', response.task_id);
                         $('#CreateTaskModal').modal('hide');
@@ -193,6 +199,10 @@ const TasksCreateModal = {
                                 v-bind="locations"
                                 >
                             </tasks-location>
+                            <tasks-monitoring v-if="integrations.length > 0"
+                                :integrations="integrations"
+                                :monitoring_settings="monitoring_settings"
+                            ></tasks-monitoring>
                             <slot></slot>
                         </div>
                     </div>

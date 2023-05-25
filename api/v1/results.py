@@ -32,44 +32,6 @@ class ProjectApi(api_tools.APIModeHandler):
         rows = [ResultsGetModel.parse_obj(i.to_json()).dict() for i in task_results]
         return {"total": len(rows), "rows": rows}, 200
 
-        # rows = defaultdict(list)
-        #
-        # task_result = TaskResults.query.filter_by(project_id=project_id, task_id=task_id).all()
-        # for row in task_result:
-        #     # todo: what the fuck is this??
-        #     task = Task.query.filter_by(project_id=project_id, task_id=task_id).first()
-        #     data = row.to_json()
-        #     data["timestamp"] = row.ts
-        #     try:
-        #         data["ts"] = datetime.fromtimestamp(row.ts).isoformat()
-        #     except:
-        #         data["ts"] = None
-        #
-        #     if task_stats := data.pop("task_stats", None):
-        #         usage_delta = (
-        #                 task_stats['cpu_stats']['cpu_usage']['total_usage'] -
-        #                 task_stats['precpu_stats']['cpu_usage']['total_usage']
-        #         )
-        #         system_delta = (
-        #                 task_stats['cpu_stats']['system_cpu_usage'] -
-        #                 task_stats['precpu_stats']['system_cpu_usage']
-        #         )
-        #         online_cpus = task_stats["cpu_stats"].get("online_cpus", len(task_stats["cpu_stats"]["cpu_usage"].get("percpu_usage", [None])))
-        #
-        #         memory_usage = size(task_stats["memory_stats"]["usage"]) if task_stats.get('memory_stats') else task_stats["memory_usage"]
-        #         logging.info(f'updating task_stats {memory_usage}')
-        #         data["task_stats"] = {
-        #             "cpu_usage": round(usage_delta / system_delta, 2) * online_cpus * 100,
-        #             "memory_usage": memory_usage
-        #         }
-        #     else:
-        #         data["task_stats"] = task_stats
-        #
-        #     del data['log']
-        #
-        #     rows[task.task_name].append(data)
-        # return make_response({"total": len(task_result), "rows": rows}, 200)
-
     @auth.decorators.check_api(["configuration.tasks.tasks.create"])
     def post(self, project_id: int):
         data = request.json
@@ -93,7 +55,8 @@ class ProjectApi(api_tools.APIModeHandler):
         data = request.json
         args = request.args
         task_result_id = args.get('task_result_id')
-        task_result = TaskResults.query.filter_by(project_id=project_id, task_result_id=task_result_id).first()
+        task_result = TaskResults.query.filter_by(project_id=project_id,
+                                                  task_result_id=task_result_id).first()
         if not task_result:
             return {"message": "No such task_result_id in selected in project"}, 404
 
@@ -104,11 +67,11 @@ class ProjectApi(api_tools.APIModeHandler):
         task_result.task_stats = data.get('task_stats')
         task_result.commit()
 
-        # project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
-        # task_name = Task.query.filter_by(project_id=project_id, task_id=task_result.task_id).first().task_name
+        self.module.context.event_manager.fire_event(f'task_finished', task_result.to_json())
 
         write_task_run_logs_to_minio_bucket(task_result)
-        resp = {"message": "Accepted", "code": 202, "task_result_id": task_result.task_result_id}
+        resp = {"message": "Accepted", "code": 202,
+                "task_result_id": task_result.task_result_id}
         return make_response(resp, resp.get('code', 202))
 
 
@@ -166,11 +129,14 @@ class AdminApi(api_tools.APIModeHandler):
         task_result.task_stats = data.get('task_stats')
         task_result.commit()
 
+        self.module.context.event_manager.fire_event(f'task_finished', task_result.to_json())
+
         # project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
         # task_name = Task.query.filter_by(project_id=project_id, task_id=task_result.task_id).first().task_name
 
         write_task_run_logs_to_minio_bucket(task_result)
-        return {"message": "Accepted", "code": 202, "task_result_id": task_result.task_result_id}, 202
+        return {"message": "Accepted", "code": 202,
+                "task_result_id": task_result.task_result_id}, 202
 
 
 class API(api_tools.APIBase):

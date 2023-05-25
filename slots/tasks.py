@@ -6,14 +6,23 @@ from ..constants import RUNTIME_MAPPING
 
 class Slot:  # pylint: disable=E1101,R0903
     @web.slot('tasks_content')
-    @auth.decorators.check_slot(["configuration.tasks"], access_denied_reply=theme.access_denied_part)
+    @auth.decorators.check_slot(["configuration.tasks"],
+                                access_denied_reply=theme.access_denied_part)
     def content(self, context, slot, payload):
         project_id = context.rpc_manager.call.project_get_id()
         public_regions = context.rpc_manager.call.get_rabbit_queues("carrier", True)
-        project_regions = context.rpc_manager.call.get_rabbit_queues(f"project_{project_id}_vhost")
+        project_regions = context.rpc_manager.call.get_rabbit_queues(
+            f"project_{project_id}_vhost")
         cloud_regions = context.rpc_manager.timeout(5).integrations_get_cloud_integrations(
-                project_id)
-
+            project_id)
+        available_integrations = context.rpc_manager.call.integrations_get_all_integrations_by_name(
+            project_id=project_id,
+            integration_name='system_reporter_email',
+        )
+        available_integrations = [integration.dict(
+            exclude={'section', 'settings'}
+        ) for integration in available_integrations]
+        log.info(f'{available_integrations=}')
         # log.info('slot: [%s], payload: %s', slot, payload)
         with context.app.app_context():
             return self.descriptor.render_template(
@@ -23,7 +32,8 @@ class Slot:  # pylint: disable=E1101,R0903
                     'project_regions': project_regions,
                     "cloud_regions": cloud_regions
                 },
-                runtimes=list(RUNTIME_MAPPING.keys())
+                runtimes=list(RUNTIME_MAPPING.keys()),
+                integrations=available_integrations,
             )
 
     @web.slot('tasks_scripts')
