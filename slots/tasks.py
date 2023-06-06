@@ -16,14 +16,13 @@ class Slot:  # pylint: disable=E1101,R0903
         cloud_regions = context.rpc_manager.timeout(5).integrations_get_cloud_integrations(
             project_id)
         available_integrations = context.rpc_manager.call.integrations_get_all_integrations_by_name(
-            project_id=project_id,
-            integration_name='system_reporter_email',
+            project_id,
+            integration_name='email_template',
         )
         available_integrations = [integration.dict(
-            exclude={'section', 'settings'}
+            exclude={'section'}
         ) for integration in available_integrations]
-        log.info(f'{available_integrations=}')
-        # log.info('slot: [%s], payload: %s', slot, payload)
+        log.info('available_integrations %s', available_integrations)
         with context.app.app_context():
             return self.descriptor.render_template(
                 'tasks/content.html',

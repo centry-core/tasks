@@ -131,8 +131,6 @@ class AdminApi(api_tools.APIModeHandler):
 
         self.module.context.event_manager.fire_event(f'task_finished', task_result.to_json())
 
-        # project = self.module.context.rpc_manager.call.project_get_or_404(project_id=project_id)
-        # task_name = Task.query.filter_by(project_id=project_id, task_id=task_result.task_id).first().task_name
 
         write_task_run_logs_to_minio_bucket(task_result)
         return {"message": "Accepted", "code": 202,

@@ -1,8 +1,9 @@
-import json
-from typing import BinaryIO, List, Optional
-from ..models.tasks import Task
-from pylon.core.tools import log
+from typing import List, Optional
+
 from pydantic import BaseModel, validator, root_validator
+from pylon.core.tools import log
+
+from ..models.tasks import Task
 
 
 class TaskPutModelPD(BaseModel):
@@ -11,12 +12,12 @@ class TaskPutModelPD(BaseModel):
     task_package: str
     runtime: str
     task_handler: str
-    task_parameters: list[dict]
+    task_parameters: List[dict]
     monitoring_settings: dict = {}
 
 
 class TaskCreateModelPD(TaskPutModelPD):
-    project_id: int | None = None
+    project_id: Optional[int] = None
     engine_location: str
     cpu_cores: int
     memory: int
@@ -33,7 +34,8 @@ class TaskCreateModelPD(TaskPutModelPD):
         }
 
     @validator('project_id', always=True)
-    def check_for_project_mode(cls, value: int | None, values: dict):
+    def check_for_project_mode(cls, value: Optional[int], values: dict):
+        log.info(f'check_for_project_mode {values=} {value=}')
         if values['mode'] == 'default':
             assert value, 'project_id is required'
         return value
@@ -49,6 +51,7 @@ class TaskCreateModelPD(TaskPutModelPD):
 
     @root_validator(pre=True)
     def validate_task_exists(cls, values: dict):
+        log.info(f'validate_task_exists {values=}')
         mode = values['mode']
         query = Task.query.filter(
             Task.task_name == values['task_name'],

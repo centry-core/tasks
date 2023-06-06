@@ -103,17 +103,16 @@ class ProjectApi(api_tools.APIModeHandler):
         data = json.loads(request.form.get('data')) if request.form.get('data') else None
         if data is None:
             return {"message": "Empty data object"}, 400
-        data['project_id'] = int(project_id)
+        data['project_id'] = project_id
         data['mode'] = self.mode
-
 
         if file is not None:
             data['task_package'] = file.filename
         try:
-            pd_obj = TaskCreateModelPD.parse_obj(data)
+            pd_obj = TaskCreateModelPD(**data)
         except ValidationError as e:
             return e.errors(), 400
-        log.info(f"Task create data validated: {pd_obj=}")
+
         if file is None:
             return {"message": "Validations are passed. Upload task_package file."}, 200
 
@@ -305,7 +304,6 @@ class AdminApi(api_tools.APIModeHandler):
         if not task:
             return {"message": "No such task in selected in project"}, 404
 
-        log.info(f"initialization {data=} \n {pd_obj=}  {task=}\n")
         if file is None:
             mc = MinioClientAdmin()
             file_size = size(mc.get_file_size(bucket='tasks', filename=task.file_name))
@@ -321,8 +319,6 @@ class AdminApi(api_tools.APIModeHandler):
         task.task_handler = pd_obj.task_handler
         task.env_vars = json.dumps(env_vars)
         task.commit()
-
-        log.info(f"{data=} \n {pd_obj=} \n {task=} \n")
 
         resp = task.to_json()
         resp['size'] = file_size
