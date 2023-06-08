@@ -13,6 +13,7 @@
 #     limitations under the License.
 from typing import Optional
 
+from ..constants import TASK_STATUS
 from sqlalchemy import String, Column, Integer, Text, Float, JSON, DateTime
 
 from tools import db, db_tools, data_tools
@@ -30,7 +31,7 @@ class TaskResults(db_tools.AbstractBaseMixin, db.Base):
     results = Column(Text, unique=False, nullable=True)
     log = Column(Text, unique=False, nullable=True)
     task_duration = Column(Float, unique=False, nullable=True)
-    task_status = Column(Text, unique=False, nullable=True)
+    task_status = Column(Text, unique=False, nullable=True, default=str(TASK_STATUS.IN_PROGRESS))
     task_result_id = Column(String(128), unique=True, nullable=False)
     task_stats = Column(JSON, nullable=True, unique=False)
     created_at = Column(DateTime, server_default=data_tools.utcnow())
