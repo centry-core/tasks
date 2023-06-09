@@ -1,10 +1,8 @@
-import logging
 from collections import defaultdict
-from datetime import datetime
+from uuid import uuid4
 
-from flask import request, make_response, jsonify
+from flask import request, make_response
 from flask_restful import abort
-from hurry.filesize import size
 
 from ...models.pd.results import ResultsGetModel
 from ...models.results import TaskResults
@@ -76,7 +74,6 @@ class ProjectApi(api_tools.APIModeHandler):
         task_result = TaskResults(
             project_id=project_id,
             task_id=data.get('task_id'),
-            ts=data.get('ts'),
             results=data.get('results'),
             log=data.get('log'),
             task_duration=data.get('task_duration'),
@@ -135,8 +132,7 @@ class AdminApi(api_tools.APIModeHandler):
         # task_result = create_task_result(project_id, data)
         task_result = TaskResults(
             mode=self.mode,
-            task_id=data.get('task_id'),
-            ts=data.get('ts'),
+            task_id=data.get('task_id', uuid4()),
             results=data.get('results'),
             log=data.get('log'),
             task_duration=data.get('task_duration'),
