@@ -31,7 +31,7 @@ class TaskResults(db_tools.AbstractBaseMixin, db.Base):
     results = Column(Text, unique=False, nullable=True)
     log = Column(Text, unique=False, nullable=True)
     task_duration = Column(Float, unique=False, nullable=True)
-    task_status = Column(Text, unique=False, nullable=True, default=str(TASK_STATUS.IN_PROGRESS))
+    task_status = Column(Text, unique=False, nullable=True, default=TASK_STATUS.IN_PROGRESS)
     task_result_id = Column(String(128), unique=True, nullable=False)
     task_stats = Column(JSON, nullable=True, unique=False)
     created_at = Column(DateTime, server_default=data_tools.utcnow())
