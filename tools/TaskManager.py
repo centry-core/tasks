@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Iterable
 from uuid import uuid4
 from werkzeug.utils import secure_filename
 
@@ -6,6 +6,7 @@ from arbiter import Arbiter
 import json
 
 from ..models.pd.task import TaskCreateModel
+from ..models.results import TaskResults
 from ..models.tasks import Task
 from tools import constants as c, api_tools, rpc_tools, data_tools, MinioClient, VaultClient, MinioClientAdmin
 from pylon.core.tools import log
@@ -62,7 +63,8 @@ class TaskManager:
         log.info('Task created: [id: %s, name: %s]', task.id, task.task_name)
         return task
 
-    def run_task(self, event: list, task_id: Optional[str] = None, queue_name: Optional[str] = None) -> dict:
+    def run_task(self, event: list, task_id: Optional[str] = None,
+                 queue_name: Optional[str] = None, logger_stop_words: Iterable = tuple()) -> dict:
         log.info('YASK run event: %s, task_id: %s, queue_name: %s', event, task_id, queue_name)
         if not queue_name:
             queue_name = c.RABBIT_QUEUE_NAME
@@ -82,6 +84,8 @@ class TaskManager:
         # TODO: we need to calculate it based on VUH, if we haven't used VUH quota then run
         # check_task_quota(task)
         arbiter = self.get_arbiter()
+        logger_stop_words = set(logger_stop_words)
+        logger_stop_words.update(secrets.values())
         task_kwargs = {
             "task": vault_client.unsecret(value=task_json, secrets=secrets),
             "event": vault_client.unsecret(value=event, secrets=secrets),
@@ -89,16 +93,29 @@ class TaskManager:
             "token": vault_client.unsecret(value="{{secret.auth_token}}", secrets=secrets),
             "mode": self.mode,
             "token_type": 'Bearer',
-            "api_version": 1
+            "api_version": 1,
+            "logger_stop_words": list(logger_stop_words)
         }
+        task_kwargs['task']['task_result_id'] = self.create_result(task).task_result_id
         log.info('YASK KWARGS %s', task_kwargs)
-        arbiter.apply("execute_lambda", queue=queue_name, task_kwargs=task_kwargs)
+
+        arbiter.apply('execute_lambda', queue=queue_name, task_kwargs=task_kwargs)
         arbiter.close()
 
         if self.mode == 'default':
             rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=self.project_id)
 
         return {"message": "Accepted", "code": 200, "task_id": task_id}
+
+    def create_result(self, task: Task) -> TaskResults:
+        result_id = str(uuid4())
+        task_result = TaskResults(
+            mode=self.mode,
+            task_id=task.task_id,
+            task_result_id=result_id,
+        )
+        task_result.insert()
+        return task_result
 
     @property
     def query(self):
