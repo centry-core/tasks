@@ -3,6 +3,8 @@
         instance_name="tasks"
         :locations='{{ locations | tojson }}'
         :runtimes='{{ runtimes }}'
+        :integrations='{{ integrations }}'
+
 >
     <template #test_parameters_create>
         {{ template_slot("params_table_content", payload={

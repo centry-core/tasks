@@ -1,5 +1,5 @@
 const Tasks = {
-    props: ['locations', 'runtimes'],
+    props: ['locations', 'runtimes', 'integrations'],
     components: {
         'create-task-modal': TasksCreateModal,
         'tasks-update-modal': TasksUpdateModal,
@@ -279,6 +279,7 @@ const Tasks = {
             <create-task-modal
                 :locations="locations"
                 :runtimes="runtimes"
+                :integrations="integrations"
                 @update-tasks-list="updateTasksList"
                 >
                 <slot name='test_parameters_create'></slot>
@@ -287,6 +288,7 @@ const Tasks = {
                 :locations="locations"
                 :runtimes="runtimes"
                 :selected-task="selectedTask"
+                :integrations="integrations"
                 @update-tasks-list="updateTasksList"
                 >
                 <slot name='test_parameters_update'></slot>

@@ -9,8 +9,14 @@ class Slot:
     @auth.decorators.check_slot(["configuration.tasks"], access_denied_reply=theme.access_denied_part)
     def content(self, context, slot, payload):
         public_regions = context.rpc_manager.call.get_rabbit_queues("carrier", True)
-        # project_regions = context.rpc_manager.call.get_rabbit_queues(f"administration_vhost")
-        # cloud_regions = context.rpc_manager.timeout(5).integrations_get_cloud_integrations()
+
+        available_integrations = context.rpc_manager.call.integrations_get_administration_integrations_by_name(
+            integration_name='email_template',
+        )
+        available_integrations = [integration.dict(
+            exclude={'section'}
+        ) for integration in available_integrations]
+        log.info('available_integrations %s', available_integrations)
         with context.app.app_context():
             return self.descriptor.render_template(
                 'tasks/content.html',
@@ -19,7 +25,8 @@ class Slot:
                     'project_regions': [],
                     'cloud_regions': []
                 },
-                runtimes=list(RUNTIME_MAPPING.keys())
+                runtimes=list(RUNTIME_MAPPING.keys()),
+                integrations=available_integrations,
             )
 
     @web.slot('administration_tasks_scripts')

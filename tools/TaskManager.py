@@ -143,3 +143,5 @@ class TaskManager:
             Task.query.filter(Task.task_id == task_id).update({Task.env_vars: task_vars})
         Task.commit()
         return True
+
+
