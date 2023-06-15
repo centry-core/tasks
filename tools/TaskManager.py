@@ -72,6 +72,8 @@ class TaskManager:
             vault_client = VaultClient.from_project(self.project_id)
         else:
             vault_client = VaultClient()
+
+        vault_client.track_used_secrets = True
         secrets = vault_client.get_all_secrets()
 
         task_id = task_id if task_id else secrets["control_tower_id"]
@@ -85,7 +87,8 @@ class TaskManager:
         # check_task_quota(task)
         arbiter = self.get_arbiter()
         logger_stop_words = set(logger_stop_words)
-        logger_stop_words.update(secrets.values())
+        # logger_stop_words.update(secrets.values())
+
         task_kwargs = {
             "task": vault_client.unsecret(value=task_json, secrets=secrets),
             "event": vault_client.unsecret(value=event, secrets=secrets),
@@ -94,8 +97,10 @@ class TaskManager:
             "mode": self.mode,
             "token_type": 'Bearer',
             "api_version": 1,
-            "logger_stop_words": list(logger_stop_words)
         }
+        logger_stop_words.update(vault_client.used_secrets)
+        task_kwargs['logger_stop_words'] = list(logger_stop_words)
+
         task_kwargs['task']['task_result_id'] = self.create_result(task).task_result_id
         log.info('YASK KWARGS %s', task_kwargs)
 
