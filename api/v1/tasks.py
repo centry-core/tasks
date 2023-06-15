@@ -1,5 +1,6 @@
 import json
 from typing import Optional, List
+from io import BytesIO
 
 from flask import request
 from pydantic import ValidationError
@@ -10,24 +11,34 @@ from ...models.validation_pd import TaskCreateModelPD, TaskPutModelPD
 from hurry.filesize import size
 
 from ...tools.TaskManager import TaskManager
-from tools import api_tools, data_tools, MinioClient, MinioClientAdmin, auth, VaultClient
+from tools import api_tools, MinioClient, MinioClientAdmin, auth, VaultClient, constants as c
 
 from pylon.core.tools import log
 
 
-def get_control_tower_size() -> int:
-    mc = MinioClientAdmin()
-    return size(mc.get_file_size(mc.TASKS_BUCKET, 'control-tower.zip'))
+class TaskChecker:
+    def __init__(self, tasks: List[Task], total: int, mode: str):
+        self.mode = mode
+        self.tasks = tasks
+        self.total = total
+        self.result = []
 
-
-class SizeMapper:
-    def __init__(self, files: List[dict]):
-        self.sizes = {i['name']: size(i["size"]) for i in files}
-
-    def map_size(self, task: Task) -> dict:
-        result = task.to_json()
-        result["size"] = self.sizes.get(task.file_name)
-        return result
+    def zip_exists(self):
+        for task in self.tasks:
+            task = task.to_json()
+            zippath = task['zippath']
+            if self.mode == c.ADMINISTRATION_MODE or zippath['file_name'] == 'control-tower.zip':
+                client = MinioClientAdmin(zippath['integration_id'])
+            else:
+                client = MinioClient.from_project_id(task['project_id'], 
+                    zippath['integration_id'], zippath['is_local'])
+            files = client.list_files(zippath['bucket_name'])
+            sizes = {i['name']: size(i["size"]) for i in files}
+            if zippath['file_name'] in sizes:
+                task["size"] = sizes.get(zippath['file_name'])
+                self.result.append(task)
+            else:
+                self.total -= 1
 
 
 class ProjectApi(api_tools.APIModeHandler):
@@ -63,11 +74,6 @@ class ProjectApi(api_tools.APIModeHandler):
                 resp = [task.to_json()]
                 return {"total": len(resp), "rows": resp}, 200
 
-        project = self.module.context.rpc_manager.call.project_get_or_404(
-            project_id=project_id)
-        c = MinioClient(project)
-        files = c.list_files('tasks')
-
         secrets = VaultClient.from_project(project_id).get_all_secrets()
         control_tower_id = secrets.get('control_tower_id')
         total, tasks = api_tools.get(
@@ -78,18 +84,14 @@ class ProjectApi(api_tools.APIModeHandler):
                 and_(
                     Task.mode == self.mode,
                     Task.project_id == project_id,
-                    Task.zippath.in_([
-                        f'tasks/{i["name"]}' for i in files
-                    ])
                 ),
                 Task.task_id == control_tower_id
             )
         )
+        task_checker = TaskChecker(tasks, total, self.mode)
+        task_checker.zip_exists()
 
-        size_mapper = SizeMapper(files)
-        size_mapper.sizes['control-tower.zip'] = get_control_tower_size()
-
-        return {"total": total, "rows": list(map(size_mapper.map_size, tasks))}, 200
+        return {"total": task_checker.total, "rows": task_checker.result}, 200
 
     @auth.decorators.check_api({
         "permissions": ["configuration.tasks.tasks.create"],
@@ -128,7 +130,8 @@ class ProjectApi(api_tools.APIModeHandler):
                 "timeout": obj_dict.pop('timeout'),
                 "task_parameters": obj_dict.pop('task_parameters'),
                 "monitoring_settings": obj_dict.pop('monitoring_settings')
-            })
+            }),
+            's3_settings': obj_dict.pop('s3_settings')   
         }
 
         project = self.module.context.rpc_manager.call.project_get_or_404(
@@ -150,6 +153,7 @@ class ProjectApi(api_tools.APIModeHandler):
 
         if data is None:
             return {"message": "Empty data object"}, 400
+        data['mode'] = self.mode
 
         try:
             pd_obj = TaskPutModelPD(project_id=project_id, **data)
@@ -159,21 +163,46 @@ class ProjectApi(api_tools.APIModeHandler):
         if not task:
             return {"message": "No such task in selected in project"}, 404
 
-        task.task_name = pd_obj.dict().get("task_name")
+        tasks_bucket = MinioClient.TASKS_BUCKET
+        if file is None:
+            file_name = task.file_name
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
+                task.s3_is_local == pd_obj.s3_settings.is_local
+            ):
+                mc = MinioClient(project, task.s3_integration_id, task.s3_is_local)
+            else:
+                old_mc = MinioClient(project, task.s3_integration_id, task.s3_is_local)
+                old_file = old_mc.download_file(tasks_bucket, task.file_name)
+                mc = MinioClient(project, **pd_obj.s3_settings.dict())
+                mc.upload_file(tasks_bucket, BytesIO(old_file), task.file_name)
+                old_mc.remove_file(tasks_bucket, task.file_name)
+            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=task.file_name))
+        else:
+            file_name = file.filename
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
+                task.s3_is_local == pd_obj.s3_settings.is_local
+            ):
+                api_tools.upload_file(tasks_bucket, file, project, 
+                                      task.s3_integration_id, task.s3_is_local)
+                mc = MinioClient(project, task.s3_integration_id, task.s3_is_local)
+            else:
+                api_tools.upload_file(tasks_bucket, file, project, **pd_obj.s3_settings.dict())
+                mc = MinioClient(project, **pd_obj.s3_settings.dict()) 
+            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=file_name)) 
+            old_mc = MinioClient(project, task.s3_integration_id, task.s3_is_local)
+            old_mc.remove_file(tasks_bucket, task.file_name)                   
 
-        file_size = None
-        if file is not None:
-            data['task_package'] = file.filename
-            task.zippath = f"tasks/{file.filename}"
-            api_tools.upload_file(bucket="tasks", f=file, project=project)
-            c = MinioClient(project)
-            file_size = size(c.get_file_size('tasks', filename=file.filename))
-
+        task.zippath = {
+            'integration_id': pd_obj.s3_settings.integration_id,
+            'is_local': pd_obj.s3_settings.is_local,
+            'bucket_name': tasks_bucket,
+            'file_name': file_name
+        }
         env_vars = json.loads(task.env_vars)
         env_vars['task_parameters'] = pd_obj.task_parameters
         env_vars['monitoring_settings'] = pd_obj.monitoring_settings
-
-        task.task_handler = pd_obj.dict().get("task_handler")
+        task.task_name = pd_obj.task_name
+        task.task_handler = pd_obj.task_handler
         task.env_vars = json.dumps(env_vars)
         task.commit()
         resp = task.to_json()
@@ -193,28 +222,22 @@ class ProjectApi(api_tools.APIModeHandler):
         if not task:
             return {"message": "No such task in selected in project"}, 404
 
-        c = MinioClient(project=project)
-        c.remove_file('tasks', str(task.zippath).split("/")[-1])
+        c = MinioClient(project, task.s3_integration_id, task.s3_is_local)
+        c.remove_file(c.TASKS_BUCKET, task.file_name)
         task.delete()
         return None, 204
 
 
 class AdminApi(api_tools.APIModeHandler):
     def _get_list(self) -> dict:
-        files = MinioClientAdmin().list_files('tasks')
         total, tasks = api_tools.get(
             None, request.args, Task,
             mode=self.mode,
             rpc_manager=self.module.context.rpc_manager,
-            additional_filters=[
-                Task.zippath.in_([
-                    f'tasks/{i["name"]}' for i in files
-                ])
-            ]
         )
-
-        size_mapper = SizeMapper(files)
-        return {"total": total, "rows": list(map(size_mapper.map_size, tasks))}
+        task_checker = TaskChecker(tasks, total, self.mode)
+        task_checker.zip_exists()
+        return {"total": task_checker.total, "rows": task_checker.result}
 
     def _get_details(self, task: Task, with_params: bool = False) -> dict:
         if with_params:
@@ -268,7 +291,6 @@ class AdminApi(api_tools.APIModeHandler):
 
         if file is None:
             return {"message": "Validations are passed. Upload task_package file."}, 200
-
         task_payload = pd_obj.dict()
         task_payload['env_vars'] = json.dumps(pd_obj.env_vars)
         # todo: fix
@@ -277,7 +299,6 @@ class AdminApi(api_tools.APIModeHandler):
         task_payload['region'] = pd_obj.engine_location
 
         task = TaskManager(mode=self.mode).create_task(file, task_payload)
-        log.info('HERE IS POST 6')
         return {"task_id": task.task_id, "message": f"Task {task.task_name} created"}, 201
 
     @auth.decorators.check_api({
@@ -293,6 +314,7 @@ class AdminApi(api_tools.APIModeHandler):
 
         if data is None:
             return {"message": "Empty data object"}, 400
+        data['mode'] = self.mode
 
         try:
             pd_obj = TaskPutModelPD(**data)
@@ -300,18 +322,43 @@ class AdminApi(api_tools.APIModeHandler):
             return e.errors(), 400
 
         task = Task.query.filter(Task.task_id == task_id, Task.mode == self.mode).first()
-
         if not task:
             return {"message": "No such task in selected in project"}, 404
 
+        tasks_bucket = MinioClientAdmin.TASKS_BUCKET
         if file is None:
-            mc = MinioClientAdmin()
-            file_size = size(mc.get_file_size(bucket='tasks', filename=task.file_name))
+            file_name = task.file_name
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
+                task.s3_is_local == pd_obj.s3_settings.is_local
+            ):
+                mc = MinioClientAdmin(task.s3_integration_id)
+            else:
+                old_mc = MinioClientAdmin(task.s3_integration_id)
+                old_file = old_mc.download_file(tasks_bucket, task.file_name)
+                mc = MinioClientAdmin(pd_obj.s3_settings.integration_id)
+                mc.upload_file(tasks_bucket, BytesIO(old_file), task.file_name)
+                old_mc.remove_file(tasks_bucket, task.file_name)
+            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=task.file_name))
         else:
-            task.zippath = f"tasks/{file.filename}"
-            api_tools.upload_file_admin(bucket="tasks", f=file)
-            file_size = size(file)
+            file_name = file.filename
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
+                task.s3_is_local == pd_obj.s3_settings.is_local
+            ):
+                api_tools.upload_file_admin(tasks_bucket, file, task.s3_integration_id)
+                mc = MinioClientAdmin(task.s3_integration_id)
+            else:
+                api_tools.upload_file_admin(tasks_bucket, file, pd_obj.s3_settings.integration_id)
+                mc = MinioClientAdmin(pd_obj.s3_settings.integration_id) 
+            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=file_name)) 
+            old_mc = MinioClientAdmin(task.s3_integration_id)
+            old_mc.remove_file(tasks_bucket, task.file_name)                   
 
+        task.zippath = {
+            'integration_id': pd_obj.s3_settings.integration_id,
+            'is_local': pd_obj.s3_settings.is_local,
+            'bucket_name': tasks_bucket,
+            'file_name': file_name
+        }
         env_vars = json.loads(task.env_vars)
         env_vars['task_parameters'] = pd_obj.task_parameters
         env_vars['monitoring_settings'] = pd_obj.monitoring_settings
@@ -338,8 +385,8 @@ class AdminApi(api_tools.APIModeHandler):
         if not task:
             return {"message": "No such task in project"}, 404
 
-        mc = MinioClientAdmin()
-        mc.remove_file('tasks', task.file_name)
+        mc = MinioClientAdmin(task.s3_integration_id)
+        mc.remove_file(mc.TASKS_BUCKET, task.file_name)
         task.delete()
         return None, 204
 

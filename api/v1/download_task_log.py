@@ -2,6 +2,9 @@ from io import BytesIO
 from flask import send_file, abort
 from tools import MinioClient, api_tools, MinioClientAdmin, auth
 
+from pylon.core.tools import log
+
+
 class ProjectApi(api_tools.APIModeHandler):
     @auth.decorators.check_api(["configuration.tasks.tasks.create"])
     def get(self, project_id: int, task_name: str, task_result_id: str):
@@ -14,7 +17,8 @@ class ProjectApi(api_tools.APIModeHandler):
                 return send_file(BytesIO(file), attachment_filename=file)
             except TypeError:  # new flask
                 return send_file(BytesIO(file), download_name=f'{task_result_id}.log', as_attachment=True)
-        except:
+        except Exception as e:
+            log.error(str(e))
             abort(404)
 
 
@@ -29,7 +33,8 @@ class AdminApi(api_tools.APIModeHandler):
                 return send_file(BytesIO(file), attachment_filename=file)
             except TypeError:  # new flask
                 return send_file(BytesIO(file), download_name=f'{task_result_id}.log', as_attachment=True)
-        except:
+        except Exception as e:
+            log.error(str(e))
             abort(404)
 
 

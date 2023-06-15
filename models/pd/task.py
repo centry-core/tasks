@@ -8,7 +8,7 @@ class TaskCreateModel(BaseModel):
     mode: str = 'default'
     project_id: Optional[int]
     task_id: str
-    zippath: str
+    zippath: dict
     task_name: str
     task_handler: str
     runtime: str

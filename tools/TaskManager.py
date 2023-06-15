@@ -8,7 +8,7 @@ import json
 from ..models.pd.task import TaskCreateModel
 from ..models.results import TaskResults
 from ..models.tasks import Task
-from tools import constants as c, api_tools, rpc_tools, data_tools, MinioClient, VaultClient, MinioClientAdmin
+from tools import constants as c, api_tools, rpc_tools, data_tools, VaultClient
 from pylon.core.tools import log
 
 
@@ -41,7 +41,7 @@ class TaskManager:
                     task_args: dict,
                     file_name: Optional[str] = None,
                     **kwargs) -> Task:
-
+        s3_settings = task_args.get('s3_settings', {})
         if isinstance(file, str):
             file = data_tools.files.File(file, file_name)
         task_id = secure_filename(str(uuid4()))
@@ -50,13 +50,18 @@ class TaskManager:
         model_data.update(dict(
             mode=self.mode,
             project_id=self.project_id,
-            zippath=f"tasks/{file.filename}",
+            zippath={
+                'integration_id': s3_settings.get('integration_id'),
+                'is_local': s3_settings.get('is_local'),
+                'bucket_name': 'tasks',
+                'file_name': file.filename
+            },
             task_id=task_id,
         ))
         log.info('model_data: %s', model_data)
         task_model = TaskCreateModel.parse_obj(model_data)
 
-        self.upload_func(bucket="tasks", f=file, project=self.project_id)
+        self.upload_func(bucket="tasks", f=file, project=self.project_id, **s3_settings)
 
         task = Task(**task_model.dict())
         task.insert()
