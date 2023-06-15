@@ -4,11 +4,15 @@ const TasksCreateModal = {
         'tasks-location': TasksLocation,
         'tasks-monitoring': TasksMonitoring,
     },
-    props: ['locations', 'runtimes', 'integrations'],
+    props: ['locations', 'runtimes', 'integrations', 's3Integrations', 'selectedIntegration',],
     data() {
         return this.initial_state()
     },
-    watch: {},
+    watch: {
+        selectedIntegration() {
+            this.updateIntegration(this.selectedIntegration);
+        }
+    },
     mounted() {
         $('#task_modal_parallel').closest('div.custom-input').hide();
         const vm = this;
@@ -17,6 +21,9 @@ const TasksCreateModal = {
             Object.assign(vm.$data, vm.initial_state());
             form.classList.remove('was-validated');
             vm.test_parameters.clear();
+        });
+        $('#selector_integration_create_task').on('change', (e) => {
+            this.updateIntegration(e.target.value);
         });
     },
     computed: {
@@ -48,20 +55,27 @@ const TasksCreateModal = {
                     recipients: []
                 },
                 isSubmitted: false,
+                integration_id: null,
+                is_local: false,
             }
         },
         get_data() {
             return {
-                "task_name": this.task_name,
-                "task_package": this.previewFile,
-                "runtime": this.runtime,
-                "task_handler": this.task_handler,
-                "engine_location": this.location,
-                "cpu_cores": this.cpu_quota,
-                "memory": this.memory_quota,
-                "timeout": this.timeout_quota,
-                "task_parameters": this.test_parameters.get(),
-                "monitoring_settings": this.monitoring_settings,
+                 "task_name": this.task_name,
+                 "task_package": this.previewFile,
+                 "runtime": this.runtime,
+                 "task_handler": this.task_handler,
+                 "engine_location": this.location,
+                 "cpu_cores": this.cpu_quota,
+                 "memory": this.memory_quota,
+                 "timeout": this.timeout_quota,
+                 "task_parameters": this.test_parameters.get(),
+                 "monitoring_settings": this.monitoring_settings,
+                 "s3_settings": {
+                    "integration_id": this.integration_id, 
+                    "is_local": this.is_local
+                },
+
             }
         },
         uploadFile(e) {
@@ -116,6 +130,16 @@ const TasksCreateModal = {
                 })
             }
         },
+        get_integration_value(integration) {
+            return `${integration?.id}#${integration?.project_id}`
+        },
+        getIntegrationTitle(integration) {
+            return integration.is_default ? `${integration.config?.name} - default` : integration.config?.name
+        },
+        updateIntegration(integration_value) {
+            this.integration_id = parseInt(integration_value?.split('#')[0])
+            this.is_local = integration_value?.split('#')[1] !== 'null'
+        },
     },
     template: `
         <div class="modal modal-base fixed-left fade shadow-sm" tabindex="-1" role="dialog" id="CreateTaskModal" xmlns="http://www.w3.org/1999/html">
@@ -164,11 +188,26 @@ const TasksCreateModal = {
                                         {{ previewFile }}
                                         <i class="icon__16x16 icon-close__16" @click="removeFile"></i>
                                     </span>
+                                    <p class="font-h5 font-bold">Storage</p>
+                                    <p class="font-h6 font-weight-400">Choose your S3 storage to save your task package</p>
+                                    <div class="w-100-imp">
+                                        <select id='selector_integration_create_task' class="selectpicker bootstrap-select__b mb-3 mt-2" data-style="btn"
+                                            >
+                                            <option
+                                                v-for="integration in s3Integrations"
+                                                :value="get_integration_value(integration)"
+                                                :title="getIntegrationTitle(integration)"
+                                                :key="integration"
+                                            >
+                                                {{ getIntegrationTitle(integration) }}
+                                            </option>
+                                        </select>
+                                    </div>  
                                 </div>
                                 <div class="form-group">
                                     <p class="font-h5 font-bold">Runtime</p>
                                     <p class="font-h6 font-weight-400">Choose the language to use to write your function</p>
-                                    <div class=" w-100-imp">
+                                    <div class="w-100-imp">
                                         <select class="selectpicker bootstrap-select__need-validation mb-3 mt-2"
                                             data-style="btn"
                                             required

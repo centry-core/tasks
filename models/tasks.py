@@ -12,6 +12,7 @@
 #     See the License for the specific language governing permissions and
 #     limitations under the License.
 from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSON
 
 from tools import db, db_tools
 
@@ -23,7 +24,7 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
     project_id = Column(Integer, unique=False, nullable=True)
     mode = Column(String(64), unique=False, nullable=False, default='default')
     task_id = Column(String(128), unique=True, nullable=False)
-    zippath = Column(String(128), unique=False, nullable=False)
+    zippath = Column(JSON, unique=False, nullable=False)
     task_name = Column(String(128), unique=False, nullable=False)
     task_handler = Column(String(128), unique=False, nullable=False)
     runtime = Column(String(128), unique=False, nullable=False)
@@ -40,7 +41,19 @@ class Task(db_tools.AbstractBaseMixin, db.Base):
 
     @property
     def file_name(self) -> str:
-        return self.zippath.rsplit('/', 1)[-1]
+        return self.zippath.get('file_name')
+    
+    @property
+    def s3_bucket_name(self) -> str:
+        return self.zippath.get('bucket_name')
+    
+    @property
+    def s3_integration_id(self) -> str:
+        return self.zippath.get('integration_id')
+    
+    @property
+    def s3_is_local(self) -> str:
+        return self.zippath.get('is_local')
 
     # def to_json(self, exclude_fields: Optional[set] = None, **kwargs):
     #     plugin_name = self.file_name

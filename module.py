@@ -103,7 +103,8 @@ class Module(module.ModuleModel):
                 "GALLOPER_WEB_HOOK": '{{secret.post_processor}}',
                 "project_id": '{{secret.project_id}}',
                 "loki_host": '{{secret.loki_host}}'
-            })
+            }),
+            's3_settings': {'integration_id': 1, 'is_local': False}
         }
         task_manager = TaskManager(mode='administration')
         return task_manager.create_task(
@@ -141,6 +142,7 @@ class Module(module.ModuleModel):
                                             mode='administration', trailing_slash=True),
                     'None'
                 ]),
+            's3_settings': {'integration_id': 1, 'is_local': False}                
             })
         }
 

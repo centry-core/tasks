@@ -1,19 +1,41 @@
 from typing import List, Optional
 
 from pydantic import BaseModel, validator, root_validator
+from sqlalchemy import Integer, String, Boolean
 from pylon.core.tools import log
 
 from ..models.tasks import Task
 
 
+class S3Integration(BaseModel):
+    integration_id: int
+    is_local: bool
+
+
 class TaskPutModelPD(BaseModel):
     mode: str = 'default'
     task_name: str
+    s3_settings: S3Integration
+    validate_package: bool = True
     task_package: str
     runtime: str
     task_handler: str
     task_parameters: List[dict]
     monitoring_settings: dict = {}
+
+    @validator('task_package')
+    def validate_task_package(cls, value: str, values: dict):
+        if values['validate_package']:
+            mode = values['mode']
+            s3_settings = values['s3_settings']
+            assert not Task.query.filter(
+                Task.mode == mode,
+                Task.zippath['integration_id'].astext.cast(Integer) == s3_settings.integration_id,
+                Task.zippath['is_local'].astext.cast(Boolean) == s3_settings.is_local,
+                Task.zippath['bucket_name'].astext.cast(String) == 'tasks',
+                Task.zippath['file_name'].astext.cast(String) == value,
+            ).first(), f'Task package {value} already exists'
+        return value
 
 
 class TaskCreateModelPD(TaskPutModelPD):
@@ -38,15 +60,6 @@ class TaskCreateModelPD(TaskPutModelPD):
         log.info(f'check_for_project_mode {values=} {value=}')
         if values['mode'] == 'default':
             assert value, 'project_id is required'
-        return value
-
-    @validator('task_package')
-    def validate_task_package(cls, value: str, values: dict):
-        mode = values['mode']
-        assert not Task.query.filter(
-            Task.zippath == f'tasks/{value}',
-            Task.mode == mode,
-        ).first(), f'Task package {value} already exists'
         return value
 
     @root_validator(pre=True)

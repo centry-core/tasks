@@ -29,13 +29,18 @@ const Tasks = {
             websocket: null,
             isLoadingWebsocket: false,
             isLoadingRun: false,
+            s3Integrations: [],
+            selectedIntegration: undefined,
         }
     },
     computed: {
         runningTasksList() {
             const resultIds = this.runningTasks.get(this.selectedTask.task_id);
             return resultIds ? [...resultIds] : []
-        }
+        },
+        default_integration() {
+            return this.s3Integrations.find(item => item.is_default)
+        },
     },
     mounted() {
         const vm = this;
@@ -51,6 +56,7 @@ const Tasks = {
                     this.selectFirstTask();
                 }
             });
+            this.fetchS3Integrations();
         })
     },
     watch: {
@@ -254,6 +260,26 @@ const Tasks = {
                 elem.scrollTop = elem.scrollHeight;
             }
         },
+        async fetchS3Integrations() {
+            const api_url = this.$root.build_api_url('integrations', 'integrations')
+            const params = '?' + new URLSearchParams({name: 's3_integration'})
+            const res = await fetch(`${api_url}/${getSelectedProjectId()}${params}`, {
+                method: 'GET',
+            })
+            if (res.ok) {
+                this.s3Integrations = await res.json()
+                this.selectedIntegration = this.get_integration_value(this.default_integration)
+                this.$nextTick(() => {
+                    $('#selector_integration_create_task').val(this.selectedIntegration)
+                    $('#selector_integration_create_task').selectpicker('refresh')
+                })
+            } else {
+                console.warn('Couldn\'t fetch S3 integrations. Resp code: ', res.status)
+            }
+        },
+        get_integration_value(integration) {
+            return `${integration?.id}#${integration?.project_id}`
+        },
     },
     template: `
         <main class="d-flex align-items-start justify-content-center mb-3">
@@ -280,6 +306,8 @@ const Tasks = {
                 :locations="locations"
                 :runtimes="runtimes"
                 :integrations="integrations"
+                :s3-integrations="s3Integrations"
+                :selected-integration="selectedIntegration"
                 @update-tasks-list="updateTasksList"
                 >
                 <slot name='test_parameters_create'></slot>
@@ -289,6 +317,7 @@ const Tasks = {
                 :runtimes="runtimes"
                 :selected-task="selectedTask"
                 :integrations="integrations"
+                :s3-integrations="s3Integrations"
                 @update-tasks-list="updateTasksList"
                 >
                 <slot name='test_parameters_update'></slot>
