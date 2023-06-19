@@ -142,8 +142,8 @@ class Module(module.ModuleModel):
                                             mode='administration', trailing_slash=True),
                     'None'
                 ]),
-            's3_settings': {'integration_id': 1, 'is_local': False}                
-            })
+            }),
+            's3_settings': {'integration_id': 1, 'is_local': False}
         }
 
         task_manager = TaskManager(mode='administration')
