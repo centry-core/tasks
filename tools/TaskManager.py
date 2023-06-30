@@ -106,11 +106,19 @@ class TaskManager:
         logger_stop_words.update(vault_client.used_secrets)
         task_kwargs['logger_stop_words'] = list(logger_stop_words)
 
-        task_kwargs['task']['task_result_id'] = self.create_result(task).task_result_id
+        task_result = self.create_result(task)
+        task_kwargs['task']['task_result_id'] = task_result.task_result_id
         log.info('YASK KWARGS %s', task_kwargs)
 
         arbiter.apply('execute_lambda', queue=queue_name, task_kwargs=task_kwargs)
         arbiter.close()
+
+        task_statistics = task_json
+        task_statistics['task_result_id'] = task_result.id
+        task_statistics['start_time'] = task_result.created_at
+        if event:
+            task_statistics['test_report_id'] = event[0].get('cc_env_vars', {}).get('REPORT_ID')
+        rpc_tools.RpcMixin().rpc.call.create_task_statistics(task_statistics)
 
         if self.mode == 'default':
             rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=self.project_id)
