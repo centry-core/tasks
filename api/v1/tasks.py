@@ -25,18 +25,21 @@ class TaskChecker:
 
     def zip_exists(self):
         for task in self.tasks:
-            task = task.to_json()
-            zippath = task['zippath']
-            if self.mode == c.ADMINISTRATION_MODE or zippath['file_name'] == 'control-tower.zip':
-                client = MinioClientAdmin(zippath['integration_id'])
+            zippath = task.zippath
+            if task.mode == c.ADMINISTRATION_MODE:
+                client = MinioClientAdmin(integration_id=zippath['integration_id'])
             else:
-                client = MinioClient.from_project_id(task['project_id'], 
-                    zippath['integration_id'], zippath['is_local'])
+                client = MinioClient.from_project_id(
+                    task.project_id,
+                    integration_id=zippath['integration_id'],
+                    is_local=zippath['is_local']
+                )
             files = client.list_files(zippath['bucket_name'])
             sizes = {i['name']: size(i["size"]) for i in files}
             if zippath['file_name'] in sizes:
-                task["size"] = sizes.get(zippath['file_name'])
-                self.result.append(task)
+                result = task.to_json()
+                result["size"] = sizes.get(zippath['file_name'])
+                self.result.append(result)
             else:
                 self.total -= 1
 
@@ -74,8 +77,6 @@ class ProjectApi(api_tools.APIModeHandler):
                 resp = [task.to_json()]
                 return {"total": len(resp), "rows": resp}, 200
 
-        secrets = VaultClient.from_project(project_id).get_all_secrets()
-        control_tower_id = secrets.get('control_tower_id')
         total, tasks = api_tools.get(
             project_id, request.args, Task,
             mode=self.mode,
@@ -85,7 +86,7 @@ class ProjectApi(api_tools.APIModeHandler):
                     Task.mode == self.mode,
                     Task.project_id == project_id,
                 ),
-                Task.task_id == control_tower_id
+                Task.mode == c.ADMINISTRATION_MODE
             )
         )
         task_checker = TaskChecker(tasks, total, self.mode)
@@ -131,7 +132,7 @@ class ProjectApi(api_tools.APIModeHandler):
                 "task_parameters": obj_dict.pop('task_parameters'),
                 "monitoring_settings": obj_dict.pop('monitoring_settings')
             }),
-            's3_settings': obj_dict.pop('s3_settings')   
+            's3_settings': obj_dict.pop('s3_settings')
         }
 
         project = self.module.context.rpc_manager.call.project_get_or_404(
@@ -166,8 +167,8 @@ class ProjectApi(api_tools.APIModeHandler):
         tasks_bucket = MinioClient.TASKS_BUCKET
         if file is None:
             file_name = task.file_name
-            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
-                task.s3_is_local == pd_obj.s3_settings.is_local
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and
+                    task.s3_is_local == pd_obj.s3_settings.is_local
             ):
                 mc = MinioClient(project, task.s3_integration_id, task.s3_is_local)
             else:
@@ -179,18 +180,18 @@ class ProjectApi(api_tools.APIModeHandler):
             file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=task.file_name))
         else:
             file_name = file.filename
-            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
-                task.s3_is_local == pd_obj.s3_settings.is_local
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and
+                    task.s3_is_local == pd_obj.s3_settings.is_local
             ):
-                api_tools.upload_file(tasks_bucket, file, project, 
+                api_tools.upload_file(tasks_bucket, file, project,
                                       task.s3_integration_id, task.s3_is_local)
                 mc = MinioClient(project, task.s3_integration_id, task.s3_is_local)
             else:
                 api_tools.upload_file(tasks_bucket, file, project, **pd_obj.s3_settings.dict())
-                mc = MinioClient(project, **pd_obj.s3_settings.dict()) 
-            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=file_name)) 
+                mc = MinioClient(project, **pd_obj.s3_settings.dict())
+            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=file_name))
             old_mc = MinioClient(project, task.s3_integration_id, task.s3_is_local)
-            old_mc.remove_file(tasks_bucket, task.file_name)                   
+            old_mc.remove_file(tasks_bucket, task.file_name)
 
         task.zippath = {
             'integration_id': pd_obj.s3_settings.integration_id,
@@ -328,8 +329,8 @@ class AdminApi(api_tools.APIModeHandler):
         tasks_bucket = MinioClientAdmin.TASKS_BUCKET
         if file is None:
             file_name = task.file_name
-            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
-                task.s3_is_local == pd_obj.s3_settings.is_local
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and
+                    task.s3_is_local == pd_obj.s3_settings.is_local
             ):
                 mc = MinioClientAdmin(task.s3_integration_id)
             else:
@@ -341,17 +342,17 @@ class AdminApi(api_tools.APIModeHandler):
             file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=task.file_name))
         else:
             file_name = file.filename
-            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and 
-                task.s3_is_local == pd_obj.s3_settings.is_local
+            if (task.s3_integration_id == pd_obj.s3_settings.integration_id and
+                    task.s3_is_local == pd_obj.s3_settings.is_local
             ):
                 api_tools.upload_file_admin(tasks_bucket, file, task.s3_integration_id)
                 mc = MinioClientAdmin(task.s3_integration_id)
             else:
                 api_tools.upload_file_admin(tasks_bucket, file, pd_obj.s3_settings.integration_id)
-                mc = MinioClientAdmin(pd_obj.s3_settings.integration_id) 
-            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=file_name)) 
+                mc = MinioClientAdmin(pd_obj.s3_settings.integration_id)
+            file_size = size(mc.get_file_size(bucket=tasks_bucket, filename=file_name))
             old_mc = MinioClientAdmin(task.s3_integration_id)
-            old_mc.remove_file(tasks_bucket, task.file_name)                   
+            old_mc.remove_file(tasks_bucket, task.file_name)
 
         task.zippath = {
             'integration_id': pd_obj.s3_settings.integration_id,

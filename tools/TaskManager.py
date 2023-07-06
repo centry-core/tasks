@@ -131,6 +131,7 @@ class TaskManager:
             mode=self.mode,
             task_id=task.task_id,
             task_result_id=result_id,
+            project_id=self.project_id
         )
         task_result.insert()
         return task_result
