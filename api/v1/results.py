@@ -126,8 +126,9 @@ class AdminApi(api_tools.APIModeHandler):
         task_result.task_stats = data.get('task_stats')
         task_result.commit()
 
-        self.module.context.event_manager.fire_event(f'task_finished', task_result.to_json())
-
+        task_result_dict = task_result.to_json()
+        self.module.context.event_manager.fire_event(f'task_finished', task_result_dict)
+        self.module.context.rpc_manager.call.update_task_statistics(task_result_dict)
 
         write_task_run_logs_to_minio_bucket(task_result)
         return {"message": "Accepted", "code": 202,
