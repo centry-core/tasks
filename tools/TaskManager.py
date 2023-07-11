@@ -71,6 +71,8 @@ class TaskManager:
     def run_task(self, event: list, task_id: Optional[str] = None,
                  queue_name: Optional[str] = None, logger_stop_words: Iterable = tuple()) -> dict:
         log.info('YASK run event: %s, task_id: %s, queue_name: %s', event, task_id, queue_name)
+        if isinstance(event, dict):
+            event = [event]
         if not queue_name:
             queue_name = c.RABBIT_QUEUE_NAME
         if self.mode == 'default':
