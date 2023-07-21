@@ -259,12 +259,9 @@ class AdminApi(api_tools.APIModeHandler):
         }})
     def get(self, task_id: Optional[str] = None, **kwargs):
         if task_id:
-            task = Task.query.filter(Task.task_id == task_id, Task.mode == self.mode).first()
-            if not task:
-                return {"message": "No such task in selected project"}, 404
-            get_params = request.args.get('get_parameters', 'false')
-            return self._get_details(task, with_params=get_params.lower() == 'true'), 200
-
+            task = Task.query.filter(Task.task_id == task_id, Task.mode == self.mode).first_or_404()
+            with_params = request.args.get('get_parameters')
+            return self._get_details(task, with_params=with_params), 200
         return self._get_list(), 200
 
     @auth.decorators.check_api({
