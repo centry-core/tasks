@@ -118,7 +118,7 @@ class TaskManager:
         task_statistics['start_time'] = task_result.created_at
         if event:
             task_statistics['test_report_id'] = event[0].get('cc_env_vars', {}).get('REPORT_ID')
-        rpc_tools.RpcMixin().rpc.call.create_task_statistics(task_statistics)
+        rpc_tools.RpcMixin().rpc.timeout(3).create_task_statistics(task_statistics)
 
         if self.mode == 'default':
             rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=self.project_id)
