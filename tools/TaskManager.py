@@ -68,7 +68,7 @@ class TaskManager:
         log.info('Task created: [id: %s, name: %s]', task.id, task.task_name)
         return task
 
-    def run_task(self, event: list, task_id: Optional[str] = None,
+    def run_task(self, event: list | dict, task_id: Optional[str] = None,
                  queue_name: Optional[str] = None, logger_stop_words: Iterable = tuple()) -> dict:
         log.info('YASK run event: %s, task_id: %s, queue_name: %s', event, task_id, queue_name)
         if isinstance(event, dict):
@@ -115,17 +115,20 @@ class TaskManager:
         arbiter.apply('execute_lambda', queue=queue_name, task_kwargs=task_kwargs)
         arbiter.close()
 
-        task_statistics = task_json
-        task_statistics['task_result_id'] = task_result.id
-        task_statistics['start_time'] = task_result.created_at
-        if event:
-            task_statistics['test_report_id'] = event[0].get('cc_env_vars', {}).get('REPORT_ID')
-        rpc_tools.RpcMixin().rpc.timeout(3).create_task_statistics(task_statistics)
+        self.handle_usage(task_json, task_result, event[0])
 
+        return {"message": "Accepted", "code": 200, "task_id": task_id}
+
+    def handle_usage(self, task_json: dict, task_result: TaskResults, event: dict) -> None:
+        # need to add this functionality to event handler
         if self.mode == 'default':
             rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=self.project_id)
 
-        return {"message": "Accepted", "code": 200, "task_id": task_id}
+        task_json['task_result_id'] = task_result.id
+        task_json['start_time'] = task_result.created_at
+        task_json['test_report_id'] = event.get('cc_env_vars', {}).get('REPORT_ID')
+
+        rpc_tools.EventManagerMixin().event_manager.fire_event('create_task_statistics', task_json)
 
     def create_result(self, task: Task) -> TaskResults:
         result_id = str(uuid4())
