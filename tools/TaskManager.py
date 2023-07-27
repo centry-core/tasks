@@ -1,4 +1,4 @@
-from typing import Optional, Union, Callable, Iterable
+from typing import Optional, Union, Callable, Iterable, TypedDict
 from uuid import uuid4
 from werkzeug.utils import secure_filename
 
@@ -12,7 +12,7 @@ from tools import constants as c, api_tools, rpc_tools, data_tools, VaultClient
 from pylon.core.tools import log
 
 
-class TaskManager:
+class TaskManagerBase:
     AVAILABLE_MODES = {'default', 'administration'}
 
     def __init__(self, project_id: Optional[int] = None, mode: str = 'default'):
@@ -29,6 +29,73 @@ class TaskManager:
             user=c.RABBIT_USER, password=c.RABBIT_PASSWORD
         )
 
+    def run_task(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+BackendReportConfig = TypedDict('BackendReportConfig', {'integrations': Optional[dict], 'runner': str})
+BackendReport = TypedDict('BackendReport', {
+    'id': int,
+    'name': str,
+    'build_id': str,
+    'test_config': BackendReportConfig
+})
+
+
+class PostProcessingManager(TaskManagerBase):
+    def run_task(self,
+                 report: BackendReport,
+                 influx_db: str,
+                 queue_name: Optional[str] = None,
+                 logger_stop_words: Iterable = tuple(),
+                 **kwargs):
+        if not queue_name:
+            queue_name = c.RABBIT_QUEUE_NAME
+        if self.mode == 'default':
+            vault_client = VaultClient.from_project(self.project_id)
+        else:
+            vault_client = VaultClient()
+        vault_client.track_used_secrets = True
+
+        logger_stop_words = set(logger_stop_words)
+
+        exec_params = {
+            'influxdb_host': '{{secret.influx_ip}}',
+            'influxdb_port': '{{secret.influx_port}}',
+            'influxdb_user': '{{secret.influx_user}}',
+            'influxdb_password': '{{secret.influx_password}}',
+            'influxdb_database': influx_db,
+            'influxdb_comparison': '{{secret.comparison_db}}',
+            'influxdb_telegraf': '{{secret.telegraf_db}}',
+            'loki_host': '{{secret.loki_host}}',
+            'loki_port': '{{secret.loki_port}}',
+        }
+        # ep_good.json = lambda: json.dumps(ep_good)
+
+        pp_kwargs = {
+            'galloper_url': '{{secret.galloper_url}}',
+            'project_id': self.project_id,
+            'build_id': report['build_id'],
+            'report_id': report['id'],
+            'bucket': str(report['name']).replace("_", "").replace(" ", "").lower(),
+            'token': '{{secret.auth_token}}',
+            'integrations': report['test_config'].get('integrations'),
+            'exec_params': exec_params
+        }
+
+        vault_client.unsecret(pp_kwargs)
+        logger_stop_words.update(vault_client.used_secrets)
+        pp_kwargs['logger_stop_words'] = list(logger_stop_words)
+        log.info('TaskManagerBase YASK KWARGS %s', pp_kwargs)
+
+        arbiter = self.get_arbiter()
+        arbiter.apply('post_process', queue=queue_name, task_kwargs=pp_kwargs)
+        arbiter.close()
+
+        return {"message": "Accepted", "code": 200}
+
+
+class TaskManager(TaskManagerBase, rpc_tools.RpcMixin, rpc_tools.EventManagerMixin):
     @property
     def upload_func(self) -> Callable:
         if self.mode == 'default':
@@ -69,7 +136,8 @@ class TaskManager:
         return task
 
     def run_task(self, event: list | dict, task_id: Optional[str] = None,
-                 queue_name: Optional[str] = None, logger_stop_words: Iterable = tuple()) -> dict:
+                 queue_name: Optional[str] = None, logger_stop_words: Iterable = tuple(),
+                 **kwargs) -> dict:
         log.info('YASK run event: %s, task_id: %s, queue_name: %s', event, task_id, queue_name)
         if isinstance(event, dict):
             event = [event]
@@ -122,13 +190,13 @@ class TaskManager:
     def handle_usage(self, task_json: dict, task_result: TaskResults, event: dict) -> None:
         # need to add this functionality to event handler
         if self.mode == 'default':
-            rpc_tools.RpcMixin().rpc.call.projects_add_task_execution(project_id=self.project_id)
+            self.rpc.call.projects_add_task_execution(project_id=self.project_id)
 
         task_json['task_result_id'] = task_result.id
         task_json['start_time'] = task_result.created_at
         task_json['test_report_id'] = event.get('cc_env_vars', {}).get('REPORT_ID')
 
-        rpc_tools.EventManagerMixin().event_manager.fire_event('create_task_statistics', task_json)
+        self.event_manager.fire_event('create_task_statistics', task_json)
 
     def create_result(self, task: Task) -> TaskResults:
         result_id = str(uuid4())
@@ -167,5 +235,3 @@ class TaskManager:
             Task.query.filter(Task.task_id == task_id).update({Task.env_vars: task_vars})
         Task.commit()
         return True
-
-

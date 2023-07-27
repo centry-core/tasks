@@ -13,7 +13,7 @@ FAILED_TASKS_THRESHOLD = 5
 
 class Event:
 
-    @web.event(f"task_finished")
+    @web.event("task_finished")
     def task_finished(self, context, event, payload):
         task_results = TaskResults.query.filter(
             TaskResults.mode == payload['mode'],
