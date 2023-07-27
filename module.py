@@ -18,9 +18,9 @@ from pylon.core.tools import module  # pylint: disable=E0611,E0401
 import json
 
 from .models.tasks import Task
-from .tools.TaskManager import TaskManager
+from .tools.TaskManager import TaskManager, PostProcessingManager
 
-from tools import theme, constants as c, VaultClient, api_tools
+from tools import theme, VaultClient, api_tools
 
 
 class Module(module.ModuleModel):
@@ -78,6 +78,7 @@ class Module(module.ModuleModel):
         self.descriptor.init_slots()
 
         self.descriptor.register_tool('TaskManager', TaskManager)
+        self.descriptor.register_tool('PostProcessingManager', PostProcessingManager)
 
         vault_client = VaultClient()
         secrets = vault_client.get_all_secrets()

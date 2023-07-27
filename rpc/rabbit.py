@@ -8,7 +8,7 @@ from ..tools.TaskManager import TaskManager
 
 
 class RPC:
-    @web.rpc('check_rabbit_queues')
+    @web.rpc('tasks_check_rabbit_queues', 'check_rabbit_queues')
     def check_rabbit_queues(self, task_id: Optional[str] = None):
         if not task_id:
             vault_client = VaultClient()
