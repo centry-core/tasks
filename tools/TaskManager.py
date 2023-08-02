@@ -196,7 +196,7 @@ class TaskManager(TaskManagerBase, rpc_tools.RpcMixin, rpc_tools.EventManagerMix
         task_json['start_time'] = task_result.created_at
         task_json['test_report_id'] = event.get('cc_env_vars', {}).get('REPORT_ID')
 
-        rpc_tools.EventManagerMixin().event_manager.fire_event('usage_create_task_resource_usage', task_json)
+        self.event_manager.fire_event('usage_create_task_resource_usage', task_json)
 
     def create_result(self, task: Task) -> TaskResults:
         result_id = str(uuid4())
