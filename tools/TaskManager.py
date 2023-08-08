@@ -23,7 +23,7 @@ class TaskManagerBase:
         log.info('TaskManager init %s', [self.project_id, self.mode])
 
     @staticmethod
-    def get_arbiter():
+    def get_arbiter() -> Arbiter:
         return Arbiter(
             host=c.RABBIT_HOST, port=c.RABBIT_PORT,
             user=c.RABBIT_USER, password=c.RABBIT_PASSWORD
@@ -80,7 +80,8 @@ class PostProcessingManager(TaskManagerBase):
             'bucket': str(report['name']).replace("_", "").replace(" ", "").lower(),
             'token': '{{secret.auth_token}}',
             'integrations': report['test_config'].get('integrations'),
-            'exec_params': exec_params
+            'exec_params': exec_params,
+            'manual_run': True
         }
 
         vault_client.unsecret(pp_kwargs)
