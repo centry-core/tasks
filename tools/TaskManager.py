@@ -26,7 +26,8 @@ class TaskManagerBase:
     def get_arbiter() -> Arbiter:
         return Arbiter(
             host=c.RABBIT_HOST, port=c.RABBIT_PORT,
-            user=c.RABBIT_USER, password=c.RABBIT_PASSWORD
+            user=c.RABBIT_USER, password=c.RABBIT_PASSWORD,
+            use_ssl=c.RABBIT_USE_SSL, ssl_verify=c.RABBIT_SSL_VERIFY,
         )
 
     def run_task(self, *args, **kwargs):
