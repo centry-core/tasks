@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from arbiter import Arbiter
 import json
 
+from sqlalchemy import or_, and_
 from ..models.pd.task import TaskCreateModel
 from ..models.results import TaskResults
 from ..models.tasks import Task
@@ -213,7 +214,15 @@ class TaskManager(TaskManagerBase, rpc_tools.RpcMixin, rpc_tools.EventManagerMix
 
     @property
     def query(self):
-        return Task.query.filter(Task.project_id == self.project_id, Task.mode == self.mode)
+        return Task.query.filter(
+            or_(
+                and_(
+                    Task.mode == self.mode,
+                    Task.project_id == self.project_id,
+                ),
+                Task.mode == c.ADMINISTRATION_MODE
+            )
+        )
 
     def list_tasks(self) -> list:
         return self.query.all()
