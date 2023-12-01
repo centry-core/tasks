@@ -2,8 +2,9 @@ from typing import Optional, Union, Callable, Iterable, TypedDict
 from uuid import uuid4
 from werkzeug.utils import secure_filename
 
-from arbiter import Arbiter
+from arbiter import Arbiter, EventNode, RedisEventNode
 import json
+import ssl
 
 from sqlalchemy import or_, and_
 from ..models.pd.task import TaskCreateModel
@@ -25,10 +26,53 @@ class TaskManagerBase:
 
     @staticmethod
     def get_arbiter() -> Arbiter:
+        arbiter_vhost = "carrier"
+        if c.ARBITER_RUNTIME == "rabbitmq":
+            ssl_context=None
+            ssl_server_hostname=None
+            #
+            if c.RABBIT_USE_SSL:
+                ssl_context = ssl.create_default_context()
+                if c.RABBIT_SSL_VERIFY is True:
+                    ssl_context.verify_mode = ssl.CERT_REQUIRED
+                    ssl_context.check_hostname = True
+                    ssl_context.load_default_certs()
+                else:
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
+                ssl_server_hostname = c.RABBIT_HOST
+            #
+            event_node = EventNode(
+                host=c.RABBIT_HOST,
+                port=int(c.RABBIT_PORT),
+                user=c.RABBIT_USER,
+                password=c.RABBIT_PASSWORD,
+                vhost=arbiter_vhost,
+                event_queue="tasks",
+                hmac_key=None,
+                hmac_digest="sha512",
+                callback_workers=c.EVENT_NODE_WORKERS,
+                ssl_context=ssl_context,
+                ssl_server_hostname=ssl_server_hostname,
+                mute_first_failed_connections=10,
+            )
+        elif c.ARBITER_RUNTIME == "redis":
+            event_node = RedisEventNode(
+                host=c.REDIS_HOST,
+                port=int(c.REDIS_PORT),
+                password=c.REDIS_PASSWORD,
+                event_queue=arbiter_vhost,
+                hmac_key=None,
+                hmac_digest="sha512",
+                callback_workers=c.EVENT_NODE_WORKERS,
+                mute_first_failed_connections=10,  # pylint: disable=C0301
+                use_ssl=c.REDIS_USE_SSL,
+            )
+        else:
+            raise ValueError(f"Unsupported arbiter runtime: {c.ARBITER_RUNTIME}")
+        #
         return Arbiter(
-            host=c.RABBIT_HOST, port=c.RABBIT_PORT,
-            user=c.RABBIT_USER, password=c.RABBIT_PASSWORD,
-            use_ssl=c.RABBIT_USE_SSL, ssl_verify=c.RABBIT_SSL_VERIFY,
+            event_node=event_node,
         )
 
     def run_task(self, *args, **kwargs):
