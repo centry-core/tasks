@@ -21,6 +21,7 @@ from .models.tasks import Task
 from .tools.TaskManager import TaskManager, PostProcessingManager
 
 from tools import theme, VaultClient, api_tools
+from tools import config as c
 
 
 class Module(module.ModuleModel):
@@ -87,12 +88,14 @@ class Module(module.ModuleModel):
             cc = self.create_control_tower_task()
             secrets['control_tower_id'] = cc.task_id
 
-        if 'rabbit_queue_checker_id' not in secrets:
+        if 'rabbit_queue_checker_id' not in secrets and c.ARBITER_RUNTIME == "rabbitmq":
             rqc = self.create_rabbit_queue_checker_task()
             secrets['rabbit_queue_checker_id'] = rqc.task_id
+
         vault_client.set_secrets(secrets)
 
     def create_control_tower_task(self) -> Task:
+        log.info("Creating control_tower task")
         cc_args = {
             "funcname": "control_tower",
             "invoke_func": "lambda.handler",
@@ -114,6 +117,7 @@ class Module(module.ModuleModel):
         )
 
     def create_rabbit_queue_checker_task(self) -> Task:
+        log.info("Creating rabbit_queue_checker task")
         rabbit_queue_checker_args = {
             "funcname": "rabbit_queue_checker",
             "invoke_func": "lambda.handler",
