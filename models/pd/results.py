@@ -22,6 +22,8 @@ class ResultsGetModel(BaseModel):
     def format_stats(cls, value: Optional[dict]):
         if not value:
             return value
+        if "kubernetes_stats" in value:
+            return {}  # FIXME: make it work with k8s and other scenarios
         usage_delta = (
                 value['cpu_stats']['cpu_usage']['total_usage'] -
                 value['precpu_stats']['cpu_usage']['total_usage']
