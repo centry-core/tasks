@@ -22,7 +22,8 @@ def write_task_run_logs_to_minio_bucket(task_result: TaskResults, task_name: Opt
         llf.fetch_logs(query=logs_query)
         llf.to_file(file_output, enc=enc)
     except:
-        log.warning('Request to loki failed with error %s', format_exc())
+        log.warning('Request to log storage failed, using logs from task result. Request error: %s', format_exc())
+        file_output.write(task_result.log.encode(enc))
         file_output.seek(0)
 
     # integration_id = report.test_config.get(
