@@ -13,6 +13,8 @@ class RPC:
         if not task_id:
             vault_client = VaultClient()
             secrets = vault_client.get_all_secrets()
+            if 'rabbit_queue_checker_id' not in secrets:
+                return  # no-op
             task_id = secrets['rabbit_queue_checker_id']
         log.info('check_rabbit_queues rpc %s', task_id)
         event = event or dict()
