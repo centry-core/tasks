@@ -77,6 +77,12 @@ const Tasks = {
     },
     methods: {
         logsSubscribe(task_result_id) {
+            if (Array.isArray(task_result_id)) {
+                return this.logsSubscribe(task_result_id[0]);
+            }
+            if (this.logsSubscribedTo == task_result_id) {
+                return;
+            }
             this.logsUnsubscribe();
             this.logsSubscribed = true;
             this.logsSubscribedTo = task_result_id;
