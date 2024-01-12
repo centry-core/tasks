@@ -26,11 +26,13 @@ const Tasks = {
             runningTasks: new Map(),
             checkingTimeInterval: null,
             selectedResultId: null,
-            websocket: null,
             isLoadingWebsocket: false,
             isLoadingRun: false,
             s3Integrations: [],
             selectedIntegration: undefined,
+            //
+            logsSubscribed: false,
+            logsSubscribedTo: null,
         }
     },
     computed: {
@@ -45,6 +47,7 @@ const Tasks = {
     mounted() {
         const vm = this;
         $(document).on('vue_init', () => {
+            socket.on("log_data", this.logsProcess);
             ApiFetchTasks().then(data => {
                 $("#task-aside-table").bootstrapTable('append', data.rows);
                 this.setBucketEvent(data.rows);
@@ -68,28 +71,69 @@ const Tasks = {
                 this.stopCheckStatus();
             }
             this.runningTasks.clear();
-            if (this.websocket) {
-                this.closeWebsocket();
-            }
+            this.logsUnsubscribe();
             if (oldVal.task_id) this.checkTaskStatus(this.selectedTask.task_id);
         }
     },
     methods: {
-        closeWebsocket() {
-            this.websocket.close();
-            this.websocket = null;
-            this.tags_mapper = [];
-            $('#tableLogs').empty();
+        logsSubscribe(task_result_id) {
+            this.logsUnsubscribe();
+            this.logsSubscribed = true;
+            this.logsSubscribedTo = task_result_id;
+            this.isLoadingWebsocket = false;
+            socket.emit("task_logs_subscribe", {"task_result_id": this.logsSubscribedTo});
         },
-        fetchWebsocketURLByResultId(resultId) {
-            if (this.websocket) {
-                this.closeWebsocket();
+        logsUnsubscribe() {
+            if (this.logsSubscribed) {
+                socket.emit("task_logs_unsubscribe", {"task_result_id": this.logsSubscribedTo});
+                this.logsSubscribedTo = null;
+                this.logsSubscribed = false;
+                this.tags_mapper = [];
+                $('#tableLogs').empty();
             }
-            this.isLoadingWebsocket = true;
-            ApiWebsocketURLByResultId(this.selectedTask.task_id, resultId).then(({websocket_url}) => {
-                this.init_websocket(websocket_url)
+        },
+        logsProcess(data) {
+            const tagColors = [
+                '#f89033',
+                '#e127ff',
+                '#2BD48D',
+                '#2196C9',
+                '#6eaecb',
+                '#385eb0',
+                '#7345fc',
+                '#94E5B0',
+            ]
+
+            const logsTag = data.map(logTag => {
+                return logTag.labels.hostname;
+            })
+
+            const uniqTags = [...new Set(logsTag)].filter(tag => !!(tag))
+            uniqTags.forEach(tag => {
+                if (!this.tags_mapper.includes(tag)) {
+                    this.tags_mapper.push(tag)
+                }
+            })
+
+            data.forEach((record_item, recordIndex) => {
+                const timestamp = `<td>${this.normalizeDate(record_item)}</td>`;
+
+                const indexColor = this.tags_mapper.indexOf(record_item.labels.hostname);
+                const coloredTag = `<td><span style="color: ${tagColors[indexColor]}" class="ml-4">[${record_item.labels.hostname}]</span></td>`
+
+                const log_level = record_item.labels.level;
+                const coloredText = `<td><span class="colored-log colored-log__${log_level}">${log_level}</span></td>`
+
+                const message = record_item.line;
+                const randomIndex = Date.now() + Math.floor(Math.random() * 100);
+                const row = `<tr>${timestamp}${coloredTag}${coloredText}<td class="log-message__${randomIndex}"></td></tr>`
+                $('#tableLogs').append(row);
+                $(`.log-message__${randomIndex}`).append(`<plaintext>${message}`);
+
+                if (this.isShowLastLogs) this.scrollLogsToEnd();
             })
         },
+        //
         setBucketEvent(taskList, resultList) {
             const vm = this;
             $('#task-aside-table').on('click', 'tbody tr:not(.no-records-found)', function (event) {
@@ -144,7 +188,7 @@ const Tasks = {
             if (this.checkingTimeInterval) {
                 this.stopCheckStatus();
             }
-            if (this.websocket) this.closeWebsocket();
+            this.logsUnsubscribe();
             this.checkTaskStatus(this.selectedTask.task_id, true);
         },
         checkTaskStatus(taskId, closeModal = false) {
@@ -156,19 +200,17 @@ const Tasks = {
                 }
                 if (data.IN_PROGRESS) {
                     this.checkingTimeInterval = setTimeout(() => this.checkTaskStatus(this.selectedTask.task_id), 5000)
-                    if (!this.websocket) {
+                    if (!this.logsSubscribed) {
                         this.selectedResultId = data.task_result_ids.slice(-1);
-                        this.fetchWebsocketURLByResultId(this.selectedResultId);
+                        this.logsSubscribe(this.selectedResultId);
                     }
                     this.runningTasks.set(taskId, data.task_result_ids);
                 } else {
                     ApiLastResultId(taskId).then((data) => {
                         if (data.websocket_url) {
-                            if (this.websocket) {
-                                this.closeWebsocket();
-                            }
-                            this.isLoadingWebsocket = true;
-                            this.init_websocket(data.websocket_url);
+                            // FIXME: not using SIO for logs here
+                            // this.isLoadingWebsocket = true;
+                            this.logsUnsubscribe();
                             this.stopCheckStatus();
                             this.runningTasks.set(taskId, []);
                         }
@@ -180,72 +222,8 @@ const Tasks = {
             clearTimeout(this.checkingTimeInterval)
             this.checkingTimeInterval = null;
         },
-        init_websocket(websocketURL) {
-            this.websocket = new WebSocket(websocketURL)
-            this.websocket.onmessage = this.on_websocket_message
-            this.websocket.onopen = this.on_websocket_open
-            this.websocket.onclose = this.on_websocket_close
-            this.websocket.onerror = this.on_websocket_error
-        },
-        on_websocket_open(message) {
-            this.isLoadingWebsocket = false;
-        },
-        on_websocket_message(message) {
-            if (message.type !== 'message') {
-                console.warn('Unknown message from socket', message)
-                return
-            }
-            const tagColors = [
-                '#f89033',
-                '#e127ff',
-                '#2BD48D',
-                '#2196C9',
-                '#6eaecb',
-                '#385eb0',
-                '#7345fc',
-                '#94E5B0',
-            ]
-
-            const data = JSON.parse(message.data);
-            const logsTag = data.streams.map(logTag => {
-                return logTag.stream.hostname;
-            })
-
-            const uniqTags = [...new Set(logsTag)].filter(tag => !!(tag))
-            uniqTags.forEach(tag => {
-                if (!this.tags_mapper.includes(tag)) {
-                    this.tags_mapper.push(tag)
-                }
-            })
-
-            data.streams.forEach((stream_item, streamIndex) => {
-                stream_item.values.forEach((message_item, messageIndex) => {
-                    const timestamp = `<td>${this.normalizeDate(message_item)}</td>`;
-
-                    const indexColor = this.tags_mapper.indexOf(stream_item.stream.hostname);
-                    const coloredTag = `<td><span style="color: ${tagColors[indexColor]}" class="ml-4">[${stream_item.stream.hostname}]</span></td>`
-
-                    const log_level = stream_item.stream.level;
-                    const coloredText = `<td><span class="colored-log colored-log__${log_level}">${log_level}</span></td>`
-
-                    const message = message_item[1]
-                    const randomIndex = Date.now() + Math.floor(Math.random() * 100);
-                    const row = `<tr>${timestamp}${coloredTag}${coloredText}<td class="log-message__${randomIndex}"></td></tr>`
-                    $('#tableLogs').append(row);
-                    $(`.log-message__${randomIndex}`).append(`<plaintext>${message}`);
-
-                    if (this.isShowLastLogs) this.scrollLogsToEnd();
-                })
-            })
-        },
-        on_websocket_close(message) {
-            // console.log(message)
-        },
-        on_websocket_error(message) {
-            // console.log(message)
-        },
         normalizeDate(message_item) {
-            const d = new Date(Number(message_item[0]) / 1000000)
+            const d = new Date(message_item.time)
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             return d.toLocaleString("en-GB", {timeZone: tz})
         },
@@ -293,7 +271,7 @@ const Tasks = {
             </tasks-list-aside>
             <tasks-table
                 @change-scroll-logs="setShowLastLogs"
-                @select-result-id="fetchWebsocketURLByResultId"
+                @select-result-id="logsSubscribe"
                 :is-loading-websocket="isLoadingWebsocket"
                 :selected-task="selectedTask"
                 :running-tasks-list="runningTasksList"
