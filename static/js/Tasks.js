@@ -229,7 +229,7 @@ const Tasks = {
             this.checkingTimeInterval = null;
         },
         normalizeDate(message_item) {
-            const d = new Date(message_item.time)
+            const d = new Date(Number(message_item.time * 1000))
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             return d.toLocaleString("en-GB", {timeZone: tz})
         },
