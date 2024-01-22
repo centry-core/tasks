@@ -2,7 +2,7 @@ from typing import Optional, Union, Callable, Iterable, TypedDict
 from uuid import uuid4
 from werkzeug.utils import secure_filename
 
-from arbiter import Arbiter, EventNode, RedisEventNode
+from arbiter import Arbiter, EventNode, RedisEventNode, SocketIOEventNode
 import json
 import ssl
 
@@ -67,6 +67,17 @@ class TaskManagerBase:
                 callback_workers=c.EVENT_NODE_WORKERS,
                 mute_first_failed_connections=10,  # pylint: disable=C0301
                 use_ssl=c.REDIS_USE_SSL,
+            )
+        elif c.ARBITER_RUNTIME == "socketio":
+            event_node = SocketIOEventNode(
+                url=c.SIO_URL,
+                password=c.SIO_PASSWORD,
+                room=arbiter_vhost,
+                hmac_key=None,
+                hmac_digest="sha512",
+                callback_workers=c.EVENT_NODE_WORKERS,
+                mute_first_failed_connections=10,  # pylint: disable=C0301
+                ssl_verify=c.SIO_SSL_VERIFY,
             )
         else:
             raise ValueError(f"Unsupported arbiter runtime: {c.ARBITER_RUNTIME}")
