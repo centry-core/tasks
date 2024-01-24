@@ -11,6 +11,7 @@ from ..models.pd.task import TaskCreateModel
 from ..models.results import TaskResults
 from ..models.tasks import Task
 from tools import constants as c, api_tools, rpc_tools, data_tools, VaultClient
+from tools import context
 from pylon.core.tools import log
 
 
@@ -51,6 +52,14 @@ class TaskManagerBase:
                 "SIO_URL": c.SIO_URL,
                 "SIO_PASSWORD": c.SIO_PASSWORD,
                 "SIO_VHOST": arbiter_vhost,
+            })
+        #
+        descriptor = context.module_manager.descriptor.tasks
+        executor_runtime = descriptor.config.get("executor_runtime", "default")
+        #
+        if executor_runtime != "default":
+            result.update({
+                "EXECUTOR_RUNTIME": executor_runtime,
             })
         #
         return result.copy()
