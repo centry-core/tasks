@@ -25,6 +25,37 @@ class TaskManagerBase:
         log.info('TaskManager init %s', [self.project_id, self.mode])
 
     @staticmethod
+    def get_cc_env_vars():
+        arbiter_vhost = "carrier"
+        result = {
+            "ARBITER_RUNTIME": c.ARBITER_RUNTIME,
+        }
+        #
+        if c.ARBITER_RUNTIME == "rabbitmq":
+            result.update({
+                "RABBIT_HOST": c.RABBIT_HOST,
+                "RABBIT_USER": c.RABBIT_USER,
+                "RABBIT_PASSWORD": c.RABBIT_PASSWORD,
+                "RABBIT_VHOST": arbiter_vhost,
+            })
+        #
+        if c.ARBITER_RUNTIME == "redis":
+            result.update({
+                "REDIS_HOST": c.REDIS_HOST,
+                "REDIS_PASSWORD": c.REDIS_PASSWORD,
+                "REDIS_VHOST": arbiter_vhost,
+            })
+        #
+        if c.ARBITER_RUNTIME == "socketio":
+            result.update({
+                "SIO_URL": c.SIO_URL,
+                "SIO_PASSWORD": c.SIO_PASSWORD,
+                "SIO_VHOST": arbiter_vhost,
+            })
+        #
+        return result.copy()
+
+    @staticmethod
     def get_arbiter() -> Arbiter:
         arbiter_vhost = "carrier"
         if c.ARBITER_RUNTIME == "rabbitmq":
