@@ -188,7 +188,7 @@ class PostProcessingManager(TaskManagerBase):
 
         arbiter = self.get_arbiter()
         arbiter.apply('post_process', queue=queue_name, task_kwargs=pp_kwargs)
-        arbiter.close()
+        arbiter.close(waiting_tasks_timeout=0.1)
 
         return {"message": "Accepted", "code": 200}
 
@@ -279,7 +279,7 @@ class TaskManager(TaskManagerBase, rpc_tools.RpcMixin, rpc_tools.EventManagerMix
         log.info('YASK KWARGS %s', task_kwargs)
 
         arbiter.apply('execute_lambda', queue=queue_name, task_kwargs=task_kwargs)
-        arbiter.close()
+        arbiter.close(waiting_tasks_timeout=0.1)
 
         self.handle_usage(task_json, task_result, event[0])
 
