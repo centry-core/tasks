@@ -6,28 +6,41 @@ from .models.tasks import Task
 from pylon.core.tools import log
 
 from tools import api_tools, rpc_tools, data_tools, MinioClient, VaultClient, MinioClientAdmin, LokiLogFetcher, constants as c
+from tools import context
 
 
 def write_task_run_logs_to_minio_bucket(task_result: TaskResults, task_name: Optional[str] = None, **kwargs):
     if not task_name:
         task_name = Task.query.filter(Task.task_id == task_result.task_id).first().task_name
 
-    logs_query = '{hostname="%s", task_id="%s", task_result_id="%s"}' % (task_name, task_result.task_id, task_result.task_result_id)
     enc = 'utf-8'
     file_output = BytesIO()
     file_output.write(f'Task {task_name} (task_result_id={task_result.task_result_id}) run log:\n'.encode(enc))
 
-    llf = LokiLogFetcher.from_project(task_result.project_id)
+    descriptor = context.module_manager.descriptor.tasks
+    use_logging_hub = descriptor.config.get("use_logging_hub", False)
+
     try:
-        llf.fetch_logs(query=logs_query)
-        llf.to_file(file_output, enc=enc)
+        if use_logging_hub:
+            labels = {
+                "task_result_id": f"{task_result.task_result_id}",
+            }
+            logs = context.rpc_manager.timeout(5).logging_hub_fetch_logs(labels)
+            for record in logs:
+                file_output.write(f'{record["line"]}\n'.encode(enc))
+        else:
+            logs_query = '{hostname="%s", task_id="%s", task_result_id="%s"}' % (task_name, task_result.task_id, task_result.task_result_id)
+            llf = LokiLogFetcher.from_project(task_result.project_id)
+            llf.fetch_logs(query=logs_query)
+            llf.to_file(file_output, enc=enc)
     except:
         log.warning('Request to log storage failed, using logs from task result. Request error: %s', format_exc())
         try:
             file_output.write(task_result.log.encode(enc))
         except:
             pass
-        file_output.seek(0)
+
+    file_output.seek(0)
 
     # integration_id = report.test_config.get(
     #     'integrations', {}).get('system', {}).get('s3_integration', {}).get('integration_id')
