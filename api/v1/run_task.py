@@ -35,7 +35,7 @@ class ProjectApi(api_tools.APIModeHandler):
             event = dict(request.json)
         resp = TaskManager(
             project_id=project_id, mode=self.mode
-        ).run_task(event, task.task_id)
+        ).run_task(event, task.task_id, queue_name=task.region)
         return resp, resp.get('code', 200)
 
     # @auth.decorators.check_api(["configuration.tasks.tasks.edit"])
