@@ -3,7 +3,7 @@ from typing import Optional, List
 from io import BytesIO
 
 from flask import request
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 from sqlalchemy import or_, and_
 
 from ...models.tasks import Task
